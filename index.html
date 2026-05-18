@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="description" content="Monitora calorie, proteine e macro ogni giorno con una PWA mobile-first." />
+  <meta name="theme-color" content="#1565c0" media="(prefers-color-scheme: light)" />
+  <meta name="theme-color" content="#07101b" media="(prefers-color-scheme: dark)" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Conta Calorie" />
+  <title>Conta Calorie</title>
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="stylesheet" href="css/styles.css" />
+  <link rel="icon" href="icons/icon-192.svg" />
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
+</head>
+<body>
+  <div id="app" class="app-shell">
+    <header class="topbar">
+      <div class="brand">Conta Calorie</div>
+      <button id="themeToggle" class="icon-button" aria-label="Cambia tema">☀️</button>
+    </header>
+
+    <main id="mainContent" class="page-content"></main>
+
+    <nav id="bottomNav" class="bottom-nav" aria-label="Navigazione principale">
+      <button id="navDashboard" class="nav-button active" data-view="dashboard">Dashboard</button>
+      <button id="navWeek" class="nav-button" data-view="week">Settimana</button>
+      <button id="navSearch" class="nav-button" data-view="search">Aggiungi</button>
+      <button id="navFoods" class="nav-button" data-view="foods">Personali</button>
+    </nav>
+  </div>
+
+  <template id="modalTemplate">
+    <div class="modal-backdrop" role="dialog" aria-modal="true">
+      <div class="modal-card">
+        <button class="modal-close" aria-label="Chiudi">×</button>
+        <div class="modal-body"></div>
+      </div>
+    </div>
+  </template>
+
+  <script type="module" src="js/app.js?v=3"></script>
+</body>
+</html>
