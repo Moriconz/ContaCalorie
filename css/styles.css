@@ -74,6 +74,30 @@ button {
   z-index: 5;
 }
 
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.install-topbar-btn {
+  width: 2.8rem;
+  height: 2.8rem;
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface-strong);
+  color: var(--text);
+  font-size: 1.3rem;
+  transition: all 0.2s;
+}
+
+.install-topbar-btn:active {
+  transform: scale(0.95);
+}
+
+
 .brand {
   font-size: 1.1rem;
   font-weight: 700;
