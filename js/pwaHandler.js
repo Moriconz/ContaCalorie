@@ -9,38 +9,30 @@ let beforeinstallpromptCaught = false;
 
 console.log('🔧 pwaHandler.js caricato');
 
-// Usa l'evento beforeinstallprompt catturato dall'HTML inline (se disponibile)
+// Usa l'evento beforeinstallprompt catturato dall'HTML inline
 if (window.__beforeInstallPromptCaught && window.__beforeInstallPromptEvent) {
-  console.log('🎉 beforeinstallprompt già catturato dall\'HTML inline!');
+  console.log('🎉 beforeinstallprompt catturato dall\'HTML!');
   installPrompt = window.__beforeInstallPromptEvent;
   beforeinstallpromptCaught = true;
+  updateButtonState();
 } else {
-  console.log('🔧 Registrazione listener beforeinstallprompt...');
+  console.log('⏳ beforeinstallprompt non ancora catturato, rimango in ascolto...');
   window.addEventListener('beforeinstallprompt', (e) => {
-    console.log('🎉 *** beforeinstallprompt CATTURATO! *** 🎉');
+    console.log('🎉 beforeinstallprompt catturato da pwaHandler!');
     e.preventDefault();
     installPrompt = e;
     beforeinstallpromptCaught = true;
     updateButtonState();
-  }, false);
+  }, true);
 }
 
-// Registra il SW IMMEDIATAMENTE
+// SW è registrato da index.html, verifichiamo lo stato
 if ('serviceWorker' in navigator) {
-  console.log('🔧 Registrazione SW in corso...');
-  navigator.serviceWorker.register('/sw.js')
-    .then(reg => {
-      console.log('✅ Service Worker registrato:', reg.scope);
-      return navigator.serviceWorker.ready;
-    })
-    .then(() => {
-      console.log('✅ Service Worker attivo e controllante');
-    })
-    .catch(error => {
-      console.warn('❌ Service Worker registration fallito:', error);
-    });
-} else {
-  console.warn('⚠️ Service Worker non supportato');
+  navigator.serviceWorker.ready.then(() => {
+    console.log('✅ Service Worker pronto');
+  }).catch(error => {
+    console.warn('❌ Errore SW:', error);
+  });
 }
 
 // Verifica se l'app è già installata

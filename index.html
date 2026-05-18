@@ -15,18 +15,25 @@
   <link rel="icon" href="icons/icon-192.svg" />
   <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
   <script>
-    // Cattura beforeinstallprompt IL PIÙ PRESTO POSSIBILE, prima di qualsiasi altro script
+    // REGISTRA IL SERVICE WORKER SUBITO - IL PIÙ PRESTO POSSIBILE
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js').catch(e => {
+        console.error('SW registration failed:', e);
+      });
+    }
+
+    // Cattura beforeinstallprompt IL PIÙ PRESTO POSSIBILE
     window.__beforeInstallPromptEvent = null;
     window.__beforeInstallPromptCaught = false;
 
     window.addEventListener('beforeinstallprompt', (e) => {
-      console.log('🎉 beforeinstallprompt catturato da HTML!');
+      console.log('🎉 beforeinstallprompt CATTURATO!');
       e.preventDefault();
       window.__beforeInstallPromptEvent = e;
       window.__beforeInstallPromptCaught = true;
-    }, false);
+    }, true);  // Capture phase per assicurarsi di catturare prima di qualsiasi altro listener
 
-    console.log('✅ beforeinstallprompt listener registrato nel <head>');
+    console.log('✅ SW + beforeinstallprompt listener registrati nel <head>');
   </script>
 </head>
 <body>
