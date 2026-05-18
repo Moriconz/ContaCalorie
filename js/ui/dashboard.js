@@ -32,6 +32,10 @@ export function renderDashboard(state, summary, warnings) {
         <button id="addManual" class="primary">+ Aggiungi alimento</button>
         <button id="addPhoto" class="primary">+ Aggiungi da foto</button>
       </div>
+      <button id="installAppBtn" class="install-app-btn" style="display: none;">
+        <span>📲</span>
+        <span>Aggiungi alla schermata home</span>
+      </button>
     </section>
     ${MealMoments.map(moment => renderMealSection(moment, grouped[moment])).join('')}
   `;
@@ -66,9 +70,14 @@ function renderMealSection(moment, items) {
   `;
 }
 
-export function bindDashboardEvents(container, onAddManual, onAddPhoto) {
+export function bindDashboardEvents(container, onAddManual, onAddPhoto, onInstallClick) {
   const manual = container.querySelector('#addManual');
   const photo = container.querySelector('#addPhoto');
+  const installBtn = container.querySelector('#installAppBtn');
+  
   if (manual) manual.addEventListener('click', () => onAddManual());
   if (photo) photo.addEventListener('click', () => onAddPhoto());
+  if (installBtn && onInstallClick) {
+    installBtn.addEventListener('click', () => onInstallClick());
+  }
 }

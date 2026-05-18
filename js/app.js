@@ -14,6 +14,7 @@ import { renderUserFoods, bindUserFoodsEvents, renderUserFoodForm, bindUserFoodF
 import { renderWeekView, bindWeekViewEvents } from './ui/weekView.js';
 import { renderPhotoAnalysis, bindPhotoAnalysisEvents } from './ui/photoAnalysis.js';
 import { renderEstimatedFoodForm, bindEstimatedFoodFormEvents } from './ui/estimatedFoodForm.js';
+import { triggerInstallPrompt } from './pwaHandler.js';
 
 const appState = {
   userProfile: null,
@@ -99,7 +100,7 @@ function renderDashboardView() {
   const summary = aggregateDailySummary(appState.meals, appState.nutritionTargets);
   const warnings = buildNutritionWarning(appState.userProfile, summary);
   mainContent.innerHTML = renderDashboard(appState, summary, warnings);
-  bindDashboardEvents(mainContent, () => goToView('search'), () => openPhotoImport());
+  bindDashboardEvents(mainContent, () => goToView('search'), () => openPhotoImport(), () => triggerInstallPrompt());
 }
 
 function renderSearchView() {
