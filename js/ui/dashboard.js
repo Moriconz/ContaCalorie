@@ -16,12 +16,12 @@ export function renderDashboard(state, summary, warnings) {
       <div class="card">
         <h1>Oggi: ${state.currentDate}</h1>
         <div class="badge-row">
-          ${renderTargetCard('Calorie', summary.confrontoConTarget.calorie, '#1565c0')}
-          ${renderTargetCard('Proteine', summary.confrontoConTarget.proteine, '#ffb300')}
+          ${renderTargetCard('Calorie', summary.confrontoConTarget.calorie, 'primary')}
+          ${renderTargetCard('Proteine', summary.confrontoConTarget.proteine, 'accent')}
         </div>
         <div class="badge-row" style="margin-top:0.75rem;">
-          ${renderTargetCard('Carboidrati', summary.confrontoConTarget.carboidrati, '#43a047')}
-          ${renderTargetCard('Grassi', summary.confrontoConTarget.grassi, '#8e24aa')}
+          ${renderTargetCard('Carboidrati', summary.confrontoConTarget.carboidrati, 'success')}
+          ${renderTargetCard('Grassi', summary.confrontoConTarget.grassi, 'accent-light')}
         </div>
         ${warnings.length ? `<div class="alert warning">${warnings.join('<br>')}</div>` : ''}
         <div class="alert">L’app non sostituisce un medico o un nutrizionista. Controlla sempre le quantità e i valori personali.</div>
@@ -37,13 +37,14 @@ export function renderDashboard(state, summary, warnings) {
   `;
 }
 
-function renderTargetCard(label, data, color) {
+function renderTargetCard(label, data, colorVar) {
   const ratio = Math.min(100, Math.max(0, data.percent));
+  const colorValue = getComputedStyle(document.documentElement).getPropertyValue(`--${colorVar}`).trim();
   return `
     <div class="card summary-card">
       <strong>${label}</strong>
       <span>${data.actual}/${data.target} ${label === 'Calorie' ? 'kcal' : 'g'}</span>
-      <div class="bar-visual"><div class="bar-fill" style="width:${ratio}%;background:${color};"></div></div>
+      <div class="bar-visual"><div class="bar-fill" style="width:${ratio}%;background:${colorValue};"></div></div>
       <span class="small-muted">${data.percent.toFixed(0)}% del target</span>
     </div>
   `;

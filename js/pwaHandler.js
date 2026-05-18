@@ -38,9 +38,15 @@ if ('serviceWorker' in navigator) {
 // Verifica se l'app è già installata
 window.addEventListener('appinstalled', () => {
   isAppInstalled = true;
-  hideInstallButton();
   console.log('✅ App installata con successo');
+  hideInstallButton();
+  localStorage.setItem('appInstalled', 'true');
 });
+
+// Verifica anche al caricamento se l'app è stata già installata in precedenza
+if (localStorage.getItem('appInstalled') === 'true') {
+  isAppInstalled = true;
+}
 
 function hideInstallButton() {
   const btn = document.getElementById('installAppBtn');
@@ -309,16 +315,33 @@ async function verifyManifest() {
   }
 }
 
+// Verifica se l'app è in modalità standalone (già installata)
+function isStandalone() {
+  return window.navigator.standalone === true ||
+         window.matchMedia('(display-mode: standalone)').matches ||
+         document.referrer.includes('android-app://');
+}
+
 // Inizializza pulsante install
 function initInstallButton() {
   console.log('🚀 Inizializzazione install button');
-  if (!isAppInstalled) {
+
+  // Se è standalone, l'app è già installata
+  if (isStandalone()) {
+    isAppInstalled = true;
+    console.log('✅ App in modalità standalone - è già installata');
+  }
+
+  if (isAppInstalled) {
+    hideInstallButton();
+  } else {
     showInstallButton();
   }
 
   // Diagnostica dopo un breve delay
   setTimeout(() => {
     console.log('📊 === PWA STATUS CHECK ===');
+    console.log('   Standalone mode:', isStandalone());
     console.log('   beforeinstallprompt catturato:', beforeinstallpromptCaught);
     console.log('   installPrompt disponibile:', !!installPrompt);
     console.log('   App già installata:', isAppInstalled);
