@@ -32,7 +32,7 @@ export function renderDashboard(state, summary, warnings) {
         <button id="addManual" class="primary">+ Aggiungi alimento</button>
         <button id="addPhoto" class="primary">+ Aggiungi da foto</button>
       </div>
-      <button id="installAppBtn" class="install-app-btn" style="display: none;">
+      <button id="installAppBtn" class="install-app-btn">
         <span>📲</span>
         <span>Aggiungi alla schermata home</span>
       </button>
