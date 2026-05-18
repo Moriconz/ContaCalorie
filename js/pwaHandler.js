@@ -1,6 +1,6 @@
 /*
   Gestione della PWA installation prompt.
-  Registra il Service Worker il prima possibile per soddisfare i criteri di installabilità.
+  Registra il Service Worker il prima possibile per soddisfare i criteri di installabilità PWA.
 */
 
 let installPrompt = null;
@@ -9,13 +9,32 @@ let beforeinstallpromptCaught = false;
 
 console.log('🔧 pwaHandler.js caricato');
 
-// Registra il SW IMMEDIATAMENTE per soddisfare i criteri di installabilità PWA
-// Deve avvenire prima che il browser decida se mostrare beforeinstallprompt
+// Usa l'evento beforeinstallprompt catturato dall'HTML inline (se disponibile)
+if (window.__beforeInstallPromptCaught && window.__beforeInstallPromptEvent) {
+  console.log('🎉 beforeinstallprompt già catturato dall\'HTML inline!');
+  installPrompt = window.__beforeInstallPromptEvent;
+  beforeinstallpromptCaught = true;
+} else {
+  console.log('🔧 Registrazione listener beforeinstallprompt...');
+  window.addEventListener('beforeinstallprompt', (e) => {
+    console.log('🎉 *** beforeinstallprompt CATTURATO! *** 🎉');
+    e.preventDefault();
+    installPrompt = e;
+    beforeinstallpromptCaught = true;
+    updateButtonState();
+  }, false);
+}
+
+// Registra il SW IMMEDIATAMENTE
 if ('serviceWorker' in navigator) {
   console.log('🔧 Registrazione SW in corso...');
   navigator.serviceWorker.register('/sw.js')
     .then(reg => {
       console.log('✅ Service Worker registrato:', reg.scope);
+      return navigator.serviceWorker.ready;
+    })
+    .then(() => {
+      console.log('✅ Service Worker attivo e controllante');
     })
     .catch(error => {
       console.warn('❌ Service Worker registration fallito:', error);
@@ -31,18 +50,6 @@ window.addEventListener('appinstalled', () => {
   console.log('✅ App installata con successo');
 });
 
-// **CRUCIALE**: Cattura il beforeinstallprompt non appena disponibile
-// Questo listener è CRITICO e deve essere il primo ad essere registrato
-console.log('🔧 Registrazione listener beforeinstallprompt...');
-window.addEventListener('beforeinstallprompt', (e) => {
-  console.log('🎉 *** beforeinstallprompt CATTURATO! *** 🎉');
-  e.preventDefault();
-  installPrompt = e;
-  beforeinstallpromptCaught = true;
-  updateButtonState();
-}, false);
-console.log('✅ Listener beforeinstallprompt registrato');
-
 function hideInstallButton() {
   const btn = document.getElementById('installAppBtn');
   if (btn) btn.style.display = 'none';
@@ -57,16 +64,92 @@ function updateButtonState() {
   const btn = document.getElementById('installAppBtn');
   if (btn) {
     if (beforeinstallpromptCaught) {
-      btn.textContent = '📲'; // Reset text
+      btn.textContent = '📲';
       btn.title = 'Installa app';
     }
   }
 }
 
+// Funzione per mostrare diagnostica in un modal
+function showInstallDiagnostics() {
+  // Verifica lo stato della registrazione del manifest
+  const manifestLink = document.querySelector('link[rel="manifest"]');
+  const manifestLoaded = manifestLink !== null;
+
+  // Verifica il supporto del browser
+  const hasSW = 'serviceWorker' in navigator;
+  const isHTTPS = window.location.protocol === 'https:' || window.location.hostname === 'localhost';
+
+  // Testo diagnostico
+  const diagnostics = `
+📊 DIAGNOSTICA PWA INSTALLAZIONE
+
+🔍 STATO BROWSER:
+• Protocollo: ${window.location.protocol}
+• HTTPS/Localhost: ${isHTTPS ? '✅ Sì' : '❌ No (richiesto)'}
+• Service Worker: ${hasSW ? '✅ Supportato' : '❌ Non supportato'}
+
+🔍 MANIFEST:
+• Caricato: ${manifestLoaded ? '✅ Sì' : '❌ No'}
+• Path: ${manifestLink?.href || 'N/A'}
+
+🔍 PWA REQUIREMENTS:
+• beforeinstallprompt: ${beforeinstallpromptCaught ? '✅ Catturato' : '❌ Non catturato'}
+• SW Registrato: ${navigator.serviceWorker?.controller ? '✅ Sì' : '⏳ In attesa...'}
+• App Installata: ${isAppInstalled ? '✅ Sì' : '❌ No'}
+
+📱 ISTRUZIONI PER BRAVE ANDROID:
+
+Se il pulsante di installazione automatica non funziona:
+
+1️⃣ Premi il menu (⋮) in alto a destra
+2️⃣ Seleziona "Installa app" o "Aggiungi alla home"
+3️⃣ Conferma quando richiesto
+
+🍎 ISTRUZIONI PER iOS SAFARI:
+
+1️⃣ Tocca il pulsante Condividi (quadrato con freccia)
+2️⃣ Scorri verso il basso e seleziona "Aggiungi alla schermata home"
+3️⃣ Assegna un nome e tocca Aggiungi
+
+⚠️ NOTA IMPORTANTE:
+Se beforeinstallprompt non è catturato su HTTPS, il browser
+non riconosce l'app come installabile.
+  `;
+
+  // Rimuovi modal vecchi se presenti
+  document.querySelectorAll('.install-diagnostics-modal').forEach(el => el.remove());
+
+  // Crea un modal
+  const modal = document.createElement('div');
+  modal.className = 'install-diagnostics-modal';
+  modal.style.cssText = 'position: fixed; inset: 0; background: rgba(0,0,0,0.75); display: flex; align-items: center; justify-content: center; padding: 1rem; z-index: 100;';
+
+  const card = document.createElement('div');
+  card.style.cssText = 'width: min(100%, 520px); max-height: 85vh; overflow-y: auto; border-radius: 20px; background: var(--surface); padding: 1.5rem; box-shadow: 0 20px 60px rgba(0,0,0,0.3); font-family: system-ui, -apple-system, sans-serif; font-size: 0.9rem; line-height: 1.6; color: var(--text);';
+
+  const content = document.createElement('pre');
+  content.style.cssText = 'margin: 0; white-space: pre-wrap; word-break: break-word; font-size: 0.85rem; font-family: monospace;';
+  content.textContent = diagnostics;
+
+  const closeBtn = document.createElement('button');
+  closeBtn.textContent = '✕ Chiudi';
+  closeBtn.style.cssText = 'display: block; margin-top: 1.5rem; width: 100%; padding: 0.75rem; background: var(--primary); color: white; border: none; border-radius: 12px; cursor: pointer; font-weight: 600; font-size: 1rem;';
+  closeBtn.onclick = () => {
+    modal.remove();
+  };
+
+  card.appendChild(content);
+  card.appendChild(closeBtn);
+  modal.appendChild(card);
+  document.body.appendChild(modal);
+}
+
 export function triggerInstallPrompt() {
   console.log('🔵 triggerInstallPrompt chiamato');
   console.log('beforeinstallprompt catturato?', !!installPrompt);
-  
+  console.log('beforeinstallpromptCaught?', beforeinstallpromptCaught);
+
   if (installPrompt && beforeinstallpromptCaught) {
     console.log('✅ Usando beforeinstallprompt nativo');
     installPrompt.prompt();
@@ -79,8 +162,125 @@ export function triggerInstallPrompt() {
     }).catch(e => console.error('❌ Errore prompt:', e));
   } else {
     console.warn('⚠️ beforeinstallprompt NON catturato');
-    alert('📲 Per installare l\'app:\n\n1. Premi il menu (⋮)\n2. Seleziona "Installa app" o "Aggiungi alla home"');
+    // Prova a detectare il dispositivo e mostrare istruzioni specifiche
+    const userAgent = navigator.userAgent.toLowerCase();
+    const isAndroid = /android/.test(userAgent);
+    const isChrome = /chrome|brave/.test(userAgent);
+    const isSafari = /safari/.test(userAgent) && !/chrome/.test(userAgent);
+
+    if (isAndroid && isChrome) {
+      // Android Chrome o Brave
+      showAndroidInstallModal();
+    } else if (isSafari) {
+      // iOS Safari
+      showIOSInstallModal();
+    } else {
+      // Fallback generico
+      showInstallDiagnostics();
+    }
   }
+}
+
+function showAndroidInstallModal() {
+  removeExistingModal();
+
+  const modal = document.createElement('div');
+  modal.className = 'pwa-install-modal';
+  modal.style.cssText = 'position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; padding: 1rem; z-index: 100;';
+
+  const card = document.createElement('div');
+  card.style.cssText = 'width: min(100%, 500px); border-radius: 20px; background: var(--surface); padding: 2rem 1.5rem; box-shadow: 0 20px 60px rgba(0,0,0,0.3);';
+
+  const title = document.createElement('h2');
+  title.textContent = '📲 Installa Conta Calorie';
+  title.style.cssText = 'margin: 0 0 1rem; color: var(--text); font-size: 1.3rem;';
+
+  const text1 = document.createElement('p');
+  text1.textContent = 'Accedi al menu del browser per installare l\'app sulla tua schermata home.';
+  text1.style.cssText = 'margin: 0 0 1.5rem; color: var(--text); line-height: 1.5;';
+
+  const stepsContainer = document.createElement('div');
+  stepsContainer.style.cssText = 'background: var(--surface-strong); padding: 1rem; border-radius: 12px; margin-bottom: 1.5rem;';
+
+  const steps = ['Premi il menu (⋮) in alto a destra', 'Seleziona "Installa app" o "Aggiungi alla home"', 'Conferma il nome dell\'app'];
+  steps.forEach((step, i) => {
+    const stepEl = document.createElement('div');
+    stepEl.style.cssText = 'display: flex; gap: 0.75rem; margin-bottom: ' + (i < steps.length - 1 ? '0.75rem' : '0');
+    const num = document.createElement('span');
+    num.style.cssText = 'flex-shrink: 0; width: 28px; height: 28px; background: var(--primary); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 0.9rem;';
+    num.textContent = (i + 1).toString();
+    const text = document.createElement('span');
+    text.textContent = step;
+    text.style.cssText = 'color: var(--text); line-height: 1.5;';
+    stepEl.appendChild(num);
+    stepEl.appendChild(text);
+    stepsContainer.appendChild(stepEl);
+  });
+
+  const closeBtn = document.createElement('button');
+  closeBtn.textContent = '✕ Ho capito';
+  closeBtn.style.cssText = 'display: block; width: 100%; padding: 0.75rem; background: var(--primary); color: white; border: none; border-radius: 12px; cursor: pointer; font-weight: 600; font-size: 1rem;';
+  closeBtn.onclick = () => modal.remove();
+
+  card.appendChild(title);
+  card.appendChild(text1);
+  card.appendChild(stepsContainer);
+  card.appendChild(closeBtn);
+  modal.appendChild(card);
+  document.body.appendChild(modal);
+}
+
+function showIOSInstallModal() {
+  removeExistingModal();
+
+  const modal = document.createElement('div');
+  modal.className = 'pwa-install-modal';
+  modal.style.cssText = 'position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; padding: 1rem; z-index: 100;';
+
+  const card = document.createElement('div');
+  card.style.cssText = 'width: min(100%, 500px); border-radius: 20px; background: var(--surface); padding: 2rem 1.5rem; box-shadow: 0 20px 60px rgba(0,0,0,0.3);';
+
+  const title = document.createElement('h2');
+  title.textContent = '🍎 Installa Conta Calorie';
+  title.style.cssText = 'margin: 0 0 1rem; color: var(--text); font-size: 1.3rem;';
+
+  const text1 = document.createElement('p');
+  text1.textContent = 'Aggiungi l\'app alla schermata home di Safari.';
+  text1.style.cssText = 'margin: 0 0 1.5rem; color: var(--text); line-height: 1.5;';
+
+  const stepsContainer = document.createElement('div');
+  stepsContainer.style.cssText = 'background: var(--surface-strong); padding: 1rem; border-radius: 12px; margin-bottom: 1.5rem;';
+
+  const steps = ['Tocca il pulsante Condividi (quadrato con freccia)', 'Scorri verso il basso e seleziona "Aggiungi alla schermata home"', 'Assegna un nome e tocca "Aggiungi"'];
+  steps.forEach((step, i) => {
+    const stepEl = document.createElement('div');
+    stepEl.style.cssText = 'display: flex; gap: 0.75rem; margin-bottom: ' + (i < steps.length - 1 ? '0.75rem' : '0');
+    const num = document.createElement('span');
+    num.style.cssText = 'flex-shrink: 0; width: 28px; height: 28px; background: var(--primary); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 0.9rem;';
+    num.textContent = (i + 1).toString();
+    const text = document.createElement('span');
+    text.textContent = step;
+    text.style.cssText = 'color: var(--text); line-height: 1.5;';
+    stepEl.appendChild(num);
+    stepEl.appendChild(text);
+    stepsContainer.appendChild(stepEl);
+  });
+
+  const closeBtn = document.createElement('button');
+  closeBtn.textContent = '✕ Ho capito';
+  closeBtn.style.cssText = 'display: block; width: 100%; padding: 0.75rem; background: var(--primary); color: white; border: none; border-radius: 12px; cursor: pointer; font-weight: 600; font-size: 1rem;';
+  closeBtn.onclick = () => modal.remove();
+
+  card.appendChild(title);
+  card.appendChild(text1);
+  card.appendChild(stepsContainer);
+  card.appendChild(closeBtn);
+  modal.appendChild(card);
+  document.body.appendChild(modal);
+}
+
+function removeExistingModal() {
+  document.querySelectorAll('.pwa-install-modal, .install-diagnostics-modal').forEach(el => el.remove());
 }
 
 // Inizializza pulsante install
@@ -92,19 +292,13 @@ function initInstallButton() {
 
   // Diagnostica dopo un breve delay
   setTimeout(() => {
-    console.log('📊 === PWA DIAGNOSTICA ===');
+    console.log('📊 === PWA STATUS CHECK ===');
     console.log('   beforeinstallprompt catturato:', beforeinstallpromptCaught);
     console.log('   installPrompt disponibile:', !!installPrompt);
     console.log('   App già installata:', isAppInstalled);
     console.log('   Protocollo:', window.location.protocol);
-    console.log('   Manifesto caricato:', document.querySelector('link[rel="manifest"]') !== null);
-
-    if (!beforeinstallpromptCaught && window.location.protocol === 'https:') {
-      console.warn('⚠️ beforeinstallprompt NON catturato su HTTPS - possibile problema di installabilità');
-      console.warn('   Controlla: manifest.webmanifest, icons, service worker, theme-color');
-    } else if (!beforeinstallpromptCaught && window.location.protocol !== 'https:') {
-      console.log('ℹ️ beforeinstallprompt non disponibile su localhost (normale in development)');
-    }
+    console.log('   Manifesto link:', document.querySelector('link[rel="manifest"]')?.href);
+    console.log('   SW Controller:', !!navigator.serviceWorker?.controller);
   }, 2000);
 }
 

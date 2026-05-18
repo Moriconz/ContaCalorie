@@ -14,6 +14,20 @@
   <link rel="stylesheet" href="css/styles.css" />
   <link rel="icon" href="icons/icon-192.svg" />
   <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
+  <script>
+    // Cattura beforeinstallprompt IL PIÙ PRESTO POSSIBILE, prima di qualsiasi altro script
+    window.__beforeInstallPromptEvent = null;
+    window.__beforeInstallPromptCaught = false;
+
+    window.addEventListener('beforeinstallprompt', (e) => {
+      console.log('🎉 beforeinstallprompt catturato da HTML!');
+      e.preventDefault();
+      window.__beforeInstallPromptEvent = e;
+      window.__beforeInstallPromptCaught = true;
+    }, false);
+
+    console.log('✅ beforeinstallprompt listener registrato nel <head>');
+  </script>
 </head>
 <body>
   <div id="app" class="app-shell">
