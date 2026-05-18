@@ -135,3 +135,40 @@ export function buildNutritionWarning(profile, dailySummary) {
   }
   return warnings;
 }
+
+// Allenamento e stima perdita peso
+const MET_WEIGHTS = {
+  push: 3.5,
+  pull: 3.0,
+  leg: 4.0,
+  total_body: 5.0
+};
+
+export function calculateCardioCalories(weightKg, minutes, speedKmh, inclinationPct = 0) {
+  let met;
+  if (speedKmh < 4) met = 2.5;
+  else if (speedKmh < 6) met = 3.5;
+  else if (speedKmh < 8) met = 7.0;
+  else if (speedKmh < 10) met = 9.0;
+  else met = 11.5;
+
+  const inclBonus = speedKmh < 6 ? 0.07 * inclinationPct : 0.05 * inclinationPct;
+  met += inclBonus;
+  return Math.round(met * weightKg * (minutes / 60));
+}
+
+export function calculateWeightsCalories(weightKg, minutes, trainingType) {
+  const met = MET_WEIGHTS[trainingType] || 3.5;
+  return Math.round(met * weightKg * (minutes / 60));
+}
+
+export function estimateWeightChange(deficitKcalPerDay) {
+  const perWeek = (deficitKcalPerDay * 7) / 7700;
+  const perMonth = (deficitKcalPerDay * 30) / 7700;
+  const perThreeMonths = (deficitKcalPerDay * 90) / 7700;
+  return {
+    weekly: parseFloat(perWeek.toFixed(2)),
+    monthly: parseFloat(perMonth.toFixed(2)),
+    threeMonths: parseFloat(perThreeMonths.toFixed(2))
+  };
+}

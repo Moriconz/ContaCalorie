@@ -443,7 +443,8 @@ export const TYPICAL_FOOD_CATEGORIES = {
     kcal: 884, proteine: 0, carboidrati: 0, grassi: 100, fibra: 0, zuccheri: 0
   },
 
-  // Dolci e dessert italiani  gelato_crema: {
+  // Dolci e dessert italiani
+  gelato_crema: {
     kcal: 207, proteine: 4, carboidrati: 21, grassi: 12, fibra: 0, zuccheri: 16
   },
   gelato_sorbetto: {

@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Debug</title>
+  <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="brand">🧪 Test CSS Loading</div>
+    </header>
+
+    <main class="page-content">
+      <section class="section">
+        <div class="card">
+          <h1>Test CSS Caricamento</h1>
+          <p>Se vedi questo testo in uno stile BELLO = CSS caricato ✅</p>
+          <p class="small-muted">Se vedi questo testo PICCOLO E GRIGIO = CSS funziona ✅</p>
+          <button class="primary">Bottone Primary (gradiente blu-viola)</button>
+          <button class="secondary" style="margin-top: 10px;">Bottone Secondary (glass)</button>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="card">
+          <h2>Test Colori Nuovi</h2>
+          <div class="badge-row">
+            <div class="card summary-card">
+              <strong>Primary Color</strong>
+              <span>#6366f1</span>
+              <div class="bar-visual"><div class="bar-fill" style="width:75%; background: var(--primary);"></div></div>
+            </div>
+            <div class="card summary-card">
+              <strong>Accent Color</strong>
+              <span>#a855f7</span>
+              <div class="bar-visual"><div class="bar-fill" style="width:60%; background: var(--accent);"></div></div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <nav class="bottom-nav">
+      <button class="nav-button active">Dashboard</button>
+      <button class="nav-button">Settimana</button>
+      <button class="nav-button">Aggiungi</button>
+      <button class="nav-button">Personali</button>
+    </nav>
+  </div>
+
+  <script>
+    console.log('✅ Debug page caricata');
+    const computedStyle = getComputedStyle(document.documentElement);
+    const primary = computedStyle.getPropertyValue('--primary');
+    console.log('CSS Variable --primary:', primary);
+  </script>
+</body>
+</html>

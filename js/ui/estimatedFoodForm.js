@@ -10,6 +10,7 @@
 
 import { guessTypicalCategoryFromName, getTypicalValuesForCategory, listAvailableCategories } from '../typicalValues.js';
 import { calculateMacrosForAmount } from '../nutritionEngine.js';
+import { searchInDataPacks } from '../dataPackLoader.js';
 
 export function renderEstimatedFoodForm() {
   return `
@@ -59,11 +60,15 @@ export function bindEstimatedFoodFormEvents(container, callbacks) {
   const previewBtn = container.querySelector('#estimFoodPreview');
   const previewContainer = container.querySelector('#estimPreviewContainer');
 
+  console.log('🔌 bindEstimatedFoodFormEvents: binding click handler to preview button');
+
   previewBtn.addEventListener('click', async (e) => {
     e.preventDefault();
 
     const foodName = form.querySelector('#estimFoodName').value.trim();
     const grams = parseInt(form.querySelector('#estimFoodGrams').value) || 100;
+
+    console.log(`🖱️  Preview button clicked: "${foodName}" ${grams}g`);
 
     if (!foodName) {
       alert('Inserisci il nome dell\'alimento');
@@ -75,50 +80,107 @@ export function bindEstimatedFoodFormEvents(container, callbacks) {
       return;
     }
 
+    console.log('✅ Validation passed, calling showEstimatedPreview...');
     await showEstimatedPreview(previewContainer, foodName, grams, callbacks);
   });
 }
 
 async function showEstimatedPreview(container, foodName, grams, callbacks) {
-  // Step 1: indovina la categoria
-  const { category, quality } = guessTypicalCategoryFromName(foodName);
-  const values = getTypicalValuesForCategory(category);
+  console.log(`📋 showEstimatedPreview called: "${foodName}" ${grams}g`);
 
-  if (!values) {
-    alert('Categoria non riconosciuta, prova un nome diverso.');
-    return;
+  // Step 1: cerca nei data pack (pipeline: fastfood → italiani → esteri)
+  let estimatedMacros = null;
+  let foundInDataPack = false;
+  let dataPackInfo = null;
+  let category = null;
+  let quality = null;
+
+  try {
+    console.log('🔎 Calling searchInDataPacks...');
+    const dataPackResult = await searchInDataPacks(foodName, grams);
+    console.log('📦 Data pack result:', dataPackResult);
+    if (dataPackResult.found) {
+      foundInDataPack = true;
+      estimatedMacros = dataPackResult.macros;
+      dataPackInfo = {
+        type: dataPackResult.dataPackType,
+        source: dataPackResult.source,
+        region: dataPackResult.region,
+        city: dataPackResult.city,
+        chain: dataPackResult.chain,
+        cuisine: dataPackResult.cuisine
+      };
+      quality = 'specific';
+      console.log('✅ Found in data pack!', dataPackInfo);
+    } else {
+      console.log('❌ Not found in data pack, falling back to typicalValues');
+    }
+  } catch (error) {
+    console.warn('⚠️ Errore ricerca data pack:', error);
   }
 
-  // Step 2: calcola i macro stimati
-  const foodItem = { per100g: values };
-  const estimatedMacros = calculateMacrosForAmount(foodItem, grams);
+  // Step 2: fallback al sistema di categorie tipiche se non trovato nei data pack
+  if (!foundInDataPack) {
+    const guessed = guessTypicalCategoryFromName(foodName);
+    category = guessed.category;
+    quality = guessed.quality;
+    const values = getTypicalValuesForCategory(category);
 
-  // Step 3: renderizza l'anteprima con opzione di cambio categoria
-  const categories = listAvailableCategories();
+    if (!values) {
+      alert('Categoria non riconosciuta, prova un nome diverso.');
+      return;
+    }
+
+    const foodItem = { per100g: values };
+    estimatedMacros = calculateMacrosForAmount(foodItem, grams);
+  }
+
+  // Step 3: renderizza l'anteprima
+  const categories = foundInDataPack ? null : listAvailableCategories();
   const qualityLabel = quality === 'specific' ? '🎯 Specifico' : quality === 'generic' ? '📦 Generico' : '❓ Approssimativo';
 
   let html = `
     <div class="preview-header">
       <h3>Anteprima stima nutritiva</h3>
       <p class="quality-badge">${qualityLabel} per "${foodName}"</p>
+  `;
+
+  if (foundInDataPack) {
+    html += `<div class="data-pack-badges" style="margin-top: 0.5rem; display: flex; gap: 0.5rem; flex-wrap: wrap;">`;
+    html += `<span class="badge" style="background: #6366f1; color: white; padding: 0.3rem 0.6rem; border-radius: 4px; font-size: 0.85rem;">${dataPackInfo.source}</span>`;
+    if (dataPackInfo.region) {
+      html += `<span class="badge-region" style="background: #ec4899; color: white; padding: 0.3rem 0.6rem; border-radius: 4px; font-size: 0.85rem;">Tipico: ${dataPackInfo.region}${dataPackInfo.city ? ` (${dataPackInfo.city})` : ''}</span>`;
+    }
+    if (dataPackInfo.cuisine) {
+      html += `<span class="badge-cuisine" style="background: #f59e0b; color: white; padding: 0.3rem 0.6rem; border-radius: 4px; font-size: 0.85rem;">${dataPackInfo.cuisine}</span>`;
+    }
+    html += `</div>`;
+  }
+
+  html += `
     </div>
 
     <div class="preview-content">
+  `;
+
+  if (!foundInDataPack) {
+    html += `
       <div class="form-group">
         <label for="estimCategorySelect">Categoria riconosciuta</label>
         <select id="estimCategorySelect">
-  `;
-
-  categories.forEach(cat => {
-    const selected = cat === category ? 'selected' : '';
-    html += `<option value="${cat}" ${selected}>${formatCategoryLabel(cat)}</option>`;
-  });
-
-  html += `
+    `;
+    categories.forEach(cat => {
+      const selected = cat === category ? 'selected' : '';
+      html += `<option value="${cat}" ${selected}>${formatCategoryLabel(cat)}</option>`;
+    });
+    html += `
         </select>
         <p class="input-hint">Se la categoria non è corretta, selezionane un'altra dalla lista.</p>
       </div>
+    `;
+  }
 
+  html += `
       <div class="nutrition-preview">
         <h4>Valori stimati per ${grams}g</h4>
         <div class="nutrition-grid">
@@ -150,7 +212,10 @@ async function showEstimatedPreview(container, foodName, grams, callbacks) {
       </div>
 
       <div class="disclaimer">
-        ⚠️ <strong>Valori stimati:</strong> Questi sono valori medi per questa categoria di alimento. Se conosci i dati nutrizionali precisi (da etichetta), usali al posto di questa stima.
+        ${foundInDataPack
+          ? `ℹ️ <strong>Valori medi stimati</strong> per piatto standard. Ristoranti e porzioni reali possono variare. Se conosci i dati precisi, usali al posto di questa stima.`
+          : `⚠️ <strong>Valori stimati:</strong> Questi sono valori medi per questa categoria di alimento. Se conosci i dati nutrizionali precisi (da etichetta), usali al posto di questa stima.`
+        }
       </div>
 
       <div class="form-actions">
@@ -163,39 +228,53 @@ async function showEstimatedPreview(container, foodName, grams, callbacks) {
   container.innerHTML = html;
   container.style.display = 'block';
 
-  // Aggiorna l'anteprima se cambia la categoria
-  const categorySelect = container.querySelector('#estimCategorySelect');
-  categorySelect.addEventListener('change', () => {
-    const newCategory = categorySelect.value;
-    const newValues = getTypicalValuesForCategory(newCategory);
-    if (newValues) {
-      const newFoodItem = { per100g: newValues };
-      const newMacros = calculateMacrosForAmount(newFoodItem, grams);
-      updateNutritionPreview(container, newMacros);
-    }
-  });
+  // Aggiorna l'anteprima se cambia la categoria (solo se non trovato nei data pack)
+  if (!foundInDataPack) {
+    const categorySelect = container.querySelector('#estimCategorySelect');
+    categorySelect.addEventListener('change', () => {
+      const newCategory = categorySelect.value;
+      const newValues = getTypicalValuesForCategory(newCategory);
+      if (newValues) {
+        const newFoodItem = { per100g: newValues };
+        const newMacros = calculateMacrosForAmount(newFoodItem, grams);
+        updateNutritionPreview(container, newMacros);
+      }
+    });
+  }
 
   // Conferma
   const confirmBtn = container.querySelector('#estimConfirmBtn');
   confirmBtn.addEventListener('click', async () => {
-    const finalCategory = categorySelect.value;
-    const finalValues = getTypicalValuesForCategory(finalCategory);
-    if (!finalValues) {
-      alert('Categoria non valida');
-      return;
+    let finalMacros;
+    let finalSource;
+    let finalOrigin;
+
+    if (foundInDataPack) {
+      finalMacros = estimatedMacros;
+      finalSource = dataPackInfo.source;
+      finalOrigin = `data_pack_${dataPackInfo.type}`;
+      var finalCategory = `${dataPackInfo.type}_${foodName.toLowerCase().replace(/\s+/g, '_')}`;
+    } else {
+      const categorySelect = container.querySelector('#estimCategorySelect');
+      finalCategory = categorySelect.value;
+      const finalValues = getTypicalValuesForCategory(finalCategory);
+      if (!finalValues) {
+        alert('Categoria non valida');
+        return;
+      }
+      const finalFoodItem = { per100g: finalValues };
+      finalMacros = calculateMacrosForAmount(finalFoodItem, grams);
+      finalSource = 'TYPICAL_ESTIMATE';
+      finalOrigin = 'estimated_typical_value';
     }
 
-    const finalFoodItem = { per100g: finalValues };
-    const finalMacros = calculateMacrosForAmount(finalFoodItem, grams);
-
-    // Crea il payload per la callback
     const estimatedFood = {
       nome: foodName,
       categoria: finalCategory,
       grammi: grams,
       macroCalcolate: finalMacros,
-      origin: 'estimated_typical_value',
-      source: 'TYPICAL_ESTIMATE'
+      origin: finalOrigin,
+      source: finalSource
     };
 
     if (callbacks.onConfirm) {

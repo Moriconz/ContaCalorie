@@ -82,3 +82,41 @@ export function createDailySummary(fields = {}) {
     confrontoConTarget: fields.confrontoConTarget || {}
   };
 }
+
+// === ALLENAMENTI (DB v2) ===
+
+export const WeightsSplitTypes = ['push', 'pull', 'legs', 'upper', 'lower', 'full_body'];
+export const CardioTypes = ['treadmill', 'corsa_outdoor', 'camminata', 'bike', 'ellittica', 'altro'];
+export const IntensityLevels = ['leggero', 'moderato', 'intenso'];
+
+/*
+WeightsSession shape:
+{
+  id: uuid,
+  data: 'YYYY-MM-DD',
+  tipoSplit: 'push' | 'pull' | 'legs' | 'upper' | 'lower' | 'full_body',
+  durataMin: number,
+  intensita: number (1-10, RPE) | 'leggero' | 'moderato' | 'intenso',
+  note: string (optional)
+}
+
+CardioSession shape:
+{
+  id: uuid,
+  data: 'YYYY-MM-DD',
+  tipo: 'treadmill' | 'corsa_outdoor' | 'camminata' | 'bike' | 'ellittica' | 'altro',
+  durataMin: number,
+  intensita: 'lento' | 'moderato' | 'intenso' (o numero RPE 1-10),
+  velocitaKmh: number (solo treadmill/bike),
+  inclinazioneGrade: number (percentuale, es. 5),
+  distanzaStimataKm: number (opzionale),
+  note: string (opzionale)
+}
+
+DailyWeight shape:
+{
+  id: 'YYYY-MM-DD',
+  data: 'YYYY-MM-DD',
+  pesoKg: number
+}
+*/

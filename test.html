@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Test App Caricamento</title>
+  <meta charset="UTF-8">
+  <style>
+    body { font-family: monospace; padding: 20px; background: #f5f7ff; }
+    .ok { color: green; } .bad { color: red; }
+    code { display: block; margin: 10px 0; padding: 10px; background: #fff; border-left: 3px solid #999; }
+  </style>
+</head>
+<body>
+  <h1>Diagnostica App Conta Calorie</h1>
+  <div id="results"></div>
+  
+  <script>
+    const results = document.getElementById('results');
+    
+    async function test(name, fn) {
+      try {
+        const result = await fn();
+        results.innerHTML += `<div class="ok">✅ ${name}: ${result}</div>`;
+        return true;
+      } catch (e) {
+        results.innerHTML += `<div class="bad">❌ ${name}: ${e.message}</div>`;
+        return false;
+      }
+    }
+    
+    (async () => {
+      await test('Server è online', () => fetch('/').then(() => 'OK'));
+      await test('CSS caricato', () => fetch('/css/styles.css').then(r => r.ok ? 'OK' : 'Fallito'));
+      await test('HTML della pagina', () => fetch('/').then(r => r.text()).then(t => t.includes('mainContent') ? 'OK' : 'mainContent non trovato'));
+      await test('Manifest PWA', () => fetch('/manifest.webmanifest').then(r => r.json()).then(() => 'OK'));
+      
+      // Test CSS variables
+      const link = document.createElement('link');
+      link.rel = 'stylesheet';
+      link.href = '/css/styles.css';
+      document.head.appendChild(link);
+      
+      setTimeout(() => {
+        const computedStyle = getComputedStyle(document.documentElement);
+        const primary = computedStyle.getPropertyValue('--primary');
+        results.innerHTML += `<div class="ok">✅ CSS Vars: --primary = "${primary.trim()}"</div>`;
+        
+        // Ora carica l'app vera
+        results.innerHTML += '<br><h2>Caricando app...</h2>';
+        const script = document.createElement('script');
+        script.type = 'module';
+        script.src = '/js/app.js';
+        script.onerror = () => {
+          results.innerHTML += '<div class="bad">❌ App.js non si carica</div>';
+        };
+        document.body.appendChild(script);
+      }, 1000);
+    })();
+  </script>
+</body>
+</html>

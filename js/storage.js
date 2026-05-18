@@ -4,8 +4,8 @@
 */
 
 const DB_NAME = 'ContaCalorieDB';
-const DB_VERSION = 1;
-const STORE_NAMES = ['userProfile', 'userFoods', 'mealEntries', 'remoteFoods'];
+const DB_VERSION = 3;
+const STORE_NAMES = ['userProfile', 'userFoods', 'mealEntries', 'remoteFoods', 'weightsSessions', 'cardioSessions', 'dailyWeights', 'bodyCompBaselines'];
 
 function openDB() {
   return new Promise((resolve, reject) => {
@@ -166,4 +166,127 @@ export async function loadRemoteFoodCache(id) {
 
 export function syncToCloud() {
   return Promise.resolve({ message: 'Sync non implementato. Stub pronta per estensione futura.' });
+}
+
+// === WEIGHTS SESSIONS (DB v2) ===
+
+export async function saveWeightsSession(session) {
+  try {
+    await withStore('weightsSessions', 'readwrite', store => store.put(session));
+  } catch (error) {
+    console.warn('Storage: errore salvataggio weights session:', error);
+  }
+}
+
+export async function loadWeightsSessions(date) {
+  try {
+    const all = await withStore('weightsSessions', 'readonly', store => store.getAll());
+    return all.filter(s => s.data === date);
+  } catch {
+    return [];
+  }
+}
+
+export async function loadAllWeightsSessions() {
+  try {
+    return await withStore('weightsSessions', 'readonly', store => store.getAll());
+  } catch {
+    return [];
+  }
+}
+
+export async function deleteWeightsSession(id) {
+  try {
+    await withStore('weightsSessions', 'readwrite', store => store.delete(id));
+  } catch (error) {
+    console.warn('Storage: errore eliminazione weights session:', error);
+  }
+}
+
+// === CARDIO SESSIONS (DB v2) ===
+
+export async function saveCardioSession(session) {
+  try {
+    await withStore('cardioSessions', 'readwrite', store => store.put(session));
+  } catch (error) {
+    console.warn('Storage: errore salvataggio cardio session:', error);
+  }
+}
+
+export async function loadCardioSessions(date) {
+  try {
+    const all = await withStore('cardioSessions', 'readonly', store => store.getAll());
+    return all.filter(s => s.data === date);
+  } catch {
+    return [];
+  }
+}
+
+export async function loadAllCardioSessions() {
+  try {
+    return await withStore('cardioSessions', 'readonly', store => store.getAll());
+  } catch {
+    return [];
+  }
+}
+
+export async function deleteCardioSession(id) {
+  try {
+    await withStore('cardioSessions', 'readwrite', store => store.delete(id));
+  } catch (error) {
+    console.warn('Storage: errore eliminazione cardio session:', error);
+  }
+}
+
+// === DAILY WEIGHTS (DB v2) ===
+
+export async function saveDailyWeight(entry) {
+  try {
+    await withStore('dailyWeights', 'readwrite', store => store.put(entry));
+  } catch (error) {
+    console.warn('Storage: errore salvataggio daily weight:', error);
+  }
+}
+
+export async function loadDailyWeights() {
+  try {
+    const all = await withStore('dailyWeights', 'readonly', store => store.getAll());
+    return all.sort((a, b) => new Date(a.data) - new Date(b.data));
+  } catch {
+    return [];
+  }
+}
+
+export async function loadDailyWeightByDate(date) {
+  try {
+    return await withStore('dailyWeights', 'readonly', store => store.get(date));
+  } catch {
+    return null;
+  }
+}
+
+// === BODY COMPOSITION BASELINES (DB v3) ===
+
+export async function saveBodyCompBaseline(baseline) {
+  try {
+    await withStore('bodyCompBaselines', 'readwrite', store => store.put(baseline));
+  } catch (error) {
+    console.warn('Storage: errore salvataggio body comp baseline:', error);
+  }
+}
+
+export async function loadBodyCompBaselines() {
+  try {
+    return await withStore('bodyCompBaselines', 'readonly', store => store.getAll());
+  } catch {
+    return [];
+  }
+}
+
+export async function deleteBodyCompBaseline(dateBaseline) {
+  try {
+    await withStore('bodyCompBaselines', 'readwrite', store => store.delete(dateBaseline));
+  } catch (error) {
+    console.warn('Storage: errore eliminazione body comp baseline:', error);
+  }
 }

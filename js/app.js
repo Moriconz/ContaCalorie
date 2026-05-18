@@ -3,7 +3,7 @@
   Inizializza lo stato, carica i dati locali e gestisce il rendering delle viste.
 */
 
-import { loadUserProfile, saveUserProfile, loadUserFoods, saveUserFoods, loadMealsByDate, saveMealEntries, loadAllMeals } from './storage.js';
+import { loadUserProfile, saveUserProfile, loadUserFoods, saveUserFoods, loadMealsByDate, saveMealEntries, loadAllMeals, saveWeightsSession, loadWeightsSessions, saveCardioSession, loadCardioSessions, saveDailyWeight, loadDailyWeights, loadAllWeightsSessions, loadAllCardioSessions, deleteWeightsSession, deleteCardioSession, saveBodyCompBaseline, loadBodyCompBaselines } from './storage.js';
 import { calculateEnergyTargets, aggregateDailySummary, calculateMacrosForAmount, buildNutritionWarning } from './nutritionEngine.js';
 import { searchFoods, getFoodDetails } from './nutritionDataProvider.js';
 import { analyzePhoto } from './photoNutrition.js';
@@ -14,7 +14,13 @@ import { renderUserFoods, bindUserFoodsEvents, renderUserFoodForm, bindUserFoodF
 import { renderWeekView, bindWeekViewEvents } from './ui/weekView.js';
 import { renderPhotoAnalysis, bindPhotoAnalysisEvents } from './ui/photoAnalysis.js';
 import { renderEstimatedFoodForm, bindEstimatedFoodFormEvents } from './ui/estimatedFoodForm.js';
+import { renderWeightLoss, bindWeightLossEvents } from './ui/weightLoss.js';
 import { triggerInstallPrompt } from './pwaHandler.js';
+import { aggregateDailyExercise, estimateWeightsCalories, estimateCardioCalories } from './activityEnergyEngine.js';
+import { getTheoreticalTDEE, getDailyEnergyBalance, getEnergyBalanceSummary, estimateAdaptiveTDEE } from './weightLossEstimator.js';
+import { estimateBodyCompositionChange } from './bodyCompositionModel.js';
+import { getTrendWindowData, calculateAllProjections } from './trendProjection.js';
+import { getCurrentBaseline, computeBodyCompDeltasSinceBaseline, estimateCompositionToday, createBodyCompBaseline } from './bodyCompTracker.js';
 
 const appState = {
   userProfile: null,
@@ -79,6 +85,9 @@ async function renderCurrentView() {
   if (appState.currentView === 'foods') {
     return renderFoodsView();
   }
+  if (appState.currentView === 'weight') {
+    return renderWeightLossView();
+  }
   return renderDashboardView();
 }
 
@@ -96,11 +105,73 @@ function renderOnboardingView() {
   }, calculateEnergyTargets);
 }
 
-function renderDashboardView() {
+async function renderDashboardView() {
   const summary = aggregateDailySummary(appState.meals, appState.nutritionTargets);
   const warnings = buildNutritionWarning(appState.userProfile, summary);
-  mainContent.innerHTML = renderDashboard(appState, summary, warnings);
-  bindDashboardEvents(mainContent, () => goToView('search'), () => openPhotoImport(), () => triggerInstallPrompt());
+
+  let bodyCompData = null;
+  let baselines = [];
+
+  try {
+    baselines = await loadBodyCompBaselines();
+    console.log('Baselines caricate:', baselines.length > 0 ? baselines : 'nessuno');
+    const currentBaseline = getCurrentBaseline(baselines, appState.currentDate);
+    console.log('Current baseline:', currentBaseline);
+
+    if (currentBaseline) {
+      console.log('Caricamento dati per calcolo composizione...');
+      const [allMeals, allWeightsSessions, allCardioSessions, dailyWeights] = await Promise.all([
+        loadAllMeals(),
+        loadAllWeightsSessions(),
+        loadAllCardioSessions(),
+        loadDailyWeights()
+      ]);
+
+      console.log('Dati caricati:', { mealsCount: allMeals.length, weightsCount: allWeightsSessions.length, cardioCount: allCardioSessions.length, weightsCount: dailyWeights.length });
+
+      const deltas = computeBodyCompDeltasSinceBaseline(
+        currentBaseline,
+        appState.currentDate,
+        allMeals,
+        allWeightsSessions,
+        allCardioSessions,
+        dailyWeights,
+        appState.userProfile
+      );
+
+      console.log('Deltas calcolati:', deltas);
+
+      const todayWeightEntry = dailyWeights.find(w => w.data === appState.currentDate);
+      const weightToday = todayWeightEntry?.pesoKg || appState.userProfile.pesoKg;
+
+      console.log('Peso oggi:', weightToday);
+
+      const composition = estimateCompositionToday(currentBaseline, weightToday, deltas);
+
+      console.log('Composizione stimata:', composition);
+
+      bodyCompData = {
+        ...composition,
+        baseline: currentBaseline,
+        driftWarning: composition.driftWarning
+      };
+      console.log('bodyCompData finale:', bodyCompData);
+    } else {
+      console.log('Nessun baseline presente');
+    }
+  } catch (error) {
+    console.error('Errore nel calcolo composizione corporea:', error);
+    console.error('Stack trace:', error.stack);
+    bodyCompData = null;
+  }
+
+  mainContent.innerHTML = renderDashboard(appState, summary, warnings, bodyCompData);
+  bindDashboardEvents(mainContent,
+    () => goToView('search'),
+    () => openPhotoImport(),
+    () => triggerInstallPrompt(),
+    () => openBodyCompBaselineForm(baselines)
+  );
 }
 
 function renderSearchView() {
@@ -119,6 +190,152 @@ function renderFoodsView() {
     onCreate: () => openCustomFoodForm(),
     onEdit: id => editUserFood(id),
     onDelete: id => deleteUserFood(id)
+  });
+}
+
+async function renderWeightLossView() {
+  // Carica tutti i dati necessari
+  const [allMeals, todayWeightsSessions, todayCardioSessions, allWeightsSessions, allCardioSessions, dailyWeights] = await Promise.all([
+    loadAllMeals(),
+    loadWeightsSessions(appState.currentDate),
+    loadCardioSessions(appState.currentDate),
+    loadAllWeightsSessions(),
+    loadAllCardioSessions(),
+    loadDailyWeights()
+  ]);
+
+  // Filtra pasti di oggi
+  const todayMeals = allMeals.filter(meal => meal.data === appState.currentDate);
+
+  // Calcola TDEE teorico
+  const tdee = getTheoreticalTDEE(appState.userProfile);
+
+  // Calcola esercizio di oggi
+  const todayExercise = aggregateDailyExercise(todayWeightsSessions, todayCardioSessions, appState.userProfile);
+
+  // Calcola i bilanci energetici degli ultimi 7 giorni
+  const last7DaysBalances = [];
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    const dateKey = d.toISOString().slice(0, 10);
+    const dayMeals = allMeals.filter(meal => meal.data === dateKey);
+    const dayIntake = dayMeals.reduce((sum, meal) => sum + (meal.macroCalcolate?.kcal || 0), 0);
+
+    const dayWeightsSessions = allWeightsSessions.filter(s => s.data === dateKey);
+    const dayCardioSessions = allCardioSessions.filter(s => s.data === dateKey);
+    const dayExercise = aggregateDailyExercise(dayWeightsSessions, dayCardioSessions, appState.userProfile);
+
+    const balance = getDailyEnergyBalance(dayIntake, dayExercise, tdee);
+    last7DaysBalances.push({ ...balance, data: dateKey });
+  }
+
+  // Calcola TDEE adattivo da dati reali
+  const tdeeAdaptiveResult = estimateAdaptiveTDEE(dailyWeights, last7DaysBalances);
+
+  // Calcola training stats (ultimi 7 giorni)
+  const recentWeightsSessions = allWeightsSessions.filter(s => {
+    const sessionDate = new Date(s.data);
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    return sessionDate >= sevenDaysAgo;
+  });
+  const weightsSessionsPerWeek = recentWeightsSessions.length / 1;
+  const avgRPE = recentWeightsSessions.length > 0
+    ? (recentWeightsSessions.reduce((sum, s) => {
+        if (typeof s.intensita === 'number') return sum + s.intensita;
+        const rpeMap = { leggero: 3, moderato: 6, intenso: 9 };
+        return sum + (rpeMap[s.intensita] || 5);
+      }, 0) / recentWeightsSessions.length)
+    : 5;
+
+  // Calcola protein stats (media ultimi 7 giorni)
+  const allProteinIntake = allMeals
+    .filter(meal => {
+      const mealDate = new Date(meal.data);
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+      return mealDate >= sevenDaysAgo;
+    })
+    .reduce((sum, meal) => sum + (meal.macroCalcolate?.proteine || 0), 0);
+  const proteinPerKg = appState.userProfile.pesoKg > 0
+    ? (allProteinIntake / 7) / appState.userProfile.pesoKg
+    : 1.0;
+
+  // Calcola composizione corporea per 30 giorni
+  const bodyCompositionEstimate = estimateBodyCompositionChange(
+    last7DaysBalances.length > 0 ? (last7DaysBalances.reduce((sum, b) => sum + b.netDeficitOrSurplus, 0) / last7DaysBalances.length) : 0,
+    30,
+    tdee,
+    { weightsSessionsPerWeek, avgRPE },
+    { proteinPerKg }
+  );
+
+  // Calcola proiezioni basate su trend (ultimi 30 giorni)
+  const trendData = getTrendWindowData(30, allMeals, allWeightsSessions, allCardioSessions, dailyWeights, appState.userProfile);
+  const allProjections = trendData.insufficientData
+    ? { insufficientData: true, reason: trendData.reason }
+    : calculateAllProjections(trendData, appState.userProfile, tdeeAdaptiveResult.adaptiveTDEE || tdee, !!tdeeAdaptiveResult.adaptiveTDEE);
+
+  const renderData = {
+    userProfile: appState.userProfile,
+    todayMeals,
+    todayExercise,
+    tdee,
+    todayWeightsSessions,
+    todayCardioSessions,
+    allWeightsSessions,
+    allCardioSessions,
+    dailyWeights,
+    last7DaysBalances,
+    tdeeAdaptive: tdeeAdaptiveResult.adaptiveTDEE,
+    trainingStats: { weightsSessionsPerWeek, avgRPE },
+    nutritionStats: { proteinPerKg },
+    bodyCompositionEstimate,
+    projections: allProjections
+  };
+
+  mainContent.innerHTML = renderWeightLoss(renderData);
+  bindWeightLossEvents(mainContent, {
+    onSaveWeightsSession: async (session) => {
+      const sessionToSave = {
+        id: crypto.randomUUID(),
+        data: appState.currentDate,
+        ...session
+      };
+      await saveWeightsSession(sessionToSave);
+      renderWeightLossView();
+      showToast('Sessione pesi aggiunta.');
+    },
+    onSaveCardioSession: async (session) => {
+      const sessionToSave = {
+        id: crypto.randomUUID(),
+        data: appState.currentDate,
+        ...session
+      };
+      await saveCardioSession(sessionToSave);
+      renderWeightLossView();
+      showToast('Sessione cardio aggiunta.');
+    },
+    onSaveDailyWeight: async (pesoKg) => {
+      const weightEntry = {
+        id: appState.currentDate,
+        data: appState.currentDate,
+        pesoKg
+      };
+      await saveDailyWeight(weightEntry);
+      renderWeightLossView();
+      showToast('Peso registrato.');
+    },
+    onDeleteSession: async (type, id) => {
+      if (type === 'weights') {
+        await deleteWeightsSession(id);
+      } else if (type === 'cardio') {
+        await deleteCardioSession(id);
+      }
+      renderWeightLossView();
+      showToast('Sessione eliminata.');
+    },
   });
 }
 
@@ -450,12 +667,83 @@ function attachInstallButton() {
   }
 }
 
-function attachThemeToggle() {
-  themeToggle.addEventListener('click', () => {
-    document.documentElement.classList.toggle('dark');
-    themeToggle.textContent = document.documentElement.classList.contains('dark') ? '🌙' : '☀️';
+function openBodyCompBaselineForm(existingBaselines = []) {
+  const html = `
+    <div>
+      <h2>📊 Calibrazione Composizione Corporea</h2>
+      <p class="small-muted" style="margin-bottom: 1rem;">Inserisci una misurazione di body fat % da DEXA, BIA o plicometria per tracciare la composizione corporea.</p>
+
+      <label style="display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 1rem;">
+        <span class="label-text">Data misurazione</span>
+        <input id="baselineDate" type="date" value="${new Date().toISOString().slice(0, 10)}">
+      </label>
+
+      <label style="display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 1rem;">
+        <span class="label-text">Peso (kg)</span>
+        <input id="baselineWeight" type="number" min="30" max="300" step="0.1" value="${appState.userProfile.pesoKg || 70}">
+      </label>
+
+      <label style="display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 1rem;">
+        <span class="label-text">Body Fat % (da DEXA/BIA/plicometria)</span>
+        <input id="baselineBF" type="number" min="5" max="95" step="0.1" value="20">
+      </label>
+
+      <div class="small-muted" style="margin-bottom: 1rem; padding: 0.75rem; background: rgba(99,102,241,0.1); border-radius: 8px;">
+        ⓘ Quando inserisci il baseline, la composizione corporea sarà calcolata da questo punto in poi usando il tuo trend di calorie, allenamenti e proteine.
+      </div>
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
+        <button id="saveBaseline" class="primary" style="width: 100%;">Salva Calibrazione</button>
+        <button id="cancelBaseline" class="secondary" style="width: 100%;">Annulla</button>
+      </div>
+    </div>
+  `;
+
+  showModal(html, container => {
+    container.querySelector('#saveBaseline').addEventListener('click', async () => {
+      const date = container.querySelector('#baselineDate').value;
+      const weight = parseFloat(container.querySelector('#baselineWeight').value);
+      const bf = parseFloat(container.querySelector('#baselineBF').value);
+
+      if (!date || weight <= 0 || bf < 5 || bf > 95) {
+        reportError('Valori non validi. Verifica i campi.');
+        return;
+      }
+
+      const baseline = createBodyCompBaseline(date, weight, bf);
+      await saveBodyCompBaseline(baseline);
+      closeModal();
+      renderCurrentView();
+      showToast('Calibrazione salvata. Composizione corporea aggiornata.');
+    });
+
+    container.querySelector('#cancelBaseline').addEventListener('click', closeModal);
   });
 }
+
+function attachThemeToggle() {
+  if (!themeToggle) {
+    console.warn('Theme toggle element not found');
+    return;
+  }
+
+  // Carica il tema salvato
+  const savedTheme = localStorage.getItem('theme');
+  if (savedTheme === 'dark') {
+    document.documentElement.classList.add('dark');
+    themeToggle.textContent = '🌙';
+  } else if (savedTheme === 'light') {
+    document.documentElement.classList.remove('dark');
+    themeToggle.textContent = '☀️';
+  }
+
+  themeToggle.addEventListener('click', () => {
+    const isDark = document.documentElement.classList.toggle('dark');
+    localStorage.setItem('theme', isDark ? 'dark' : 'light');
+    themeToggle.textContent = isDark ? '🌙' : '☀️';
+  });
+}
+
 
 async function init() {
   attachBottomNav();
