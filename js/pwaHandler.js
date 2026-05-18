@@ -283,6 +283,40 @@ function removeExistingModal() {
   document.querySelectorAll('.pwa-install-modal, .install-diagnostics-modal').forEach(el => el.remove());
 }
 
+// Verifica il contenuto del manifest
+async function verifyManifest() {
+  try {
+    const link = document.querySelector('link[rel="manifest"]');
+    if (!link) {
+      console.warn('❌ Manifest link non trovato');
+      return;
+    }
+
+    const manifestUrl = link.href;
+    const response = await fetch(manifestUrl);
+    const manifest = await response.json();
+
+    console.log('📋 MANIFEST CONTENT:');
+    console.log('   Name:', manifest.name);
+    console.log('   Short name:', manifest.short_name);
+    console.log('   Display:', manifest.display);
+    console.log('   Start URL:', manifest.start_url);
+    console.log('   Scope:', manifest.scope);
+    console.log('   Icons:', manifest.icons?.length || 0);
+
+    // Verifica le icone
+    if (manifest.icons && manifest.icons.length > 0) {
+      console.log('🖼️  ICON CHECK:');
+      for (const icon of manifest.icons) {
+        const iconRes = await fetch(icon.src);
+        console.log(`   ${icon.src}: ${iconRes.ok ? '✅ OK' : '❌ ' + iconRes.status}`);
+      }
+    }
+  } catch (error) {
+    console.error('❌ Errore verifica manifest:', error);
+  }
+}
+
 // Inizializza pulsante install
 function initInstallButton() {
   console.log('🚀 Inizializzazione install button');
@@ -299,7 +333,10 @@ function initInstallButton() {
     console.log('   Protocollo:', window.location.protocol);
     console.log('   Manifesto link:', document.querySelector('link[rel="manifest"]')?.href);
     console.log('   SW Controller:', !!navigator.serviceWorker?.controller);
-  }, 2000);
+
+    // Verifica il manifest
+    verifyManifest();
+  }, 1000);
 }
 
 // Inizializza quando il DOM è pronto
