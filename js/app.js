@@ -457,22 +457,11 @@ function attachThemeToggle() {
   });
 }
 
-async function registerServiceWorker() {
-  if ('serviceWorker' in navigator) {
-    try {
-      await navigator.serviceWorker.register('./sw.js');
-    } catch (error) {
-      console.warn('Service worker non registrato', error);
-    }
-  }
-}
-
 async function init() {
   attachBottomNav();
   attachThemeToggle();
   attachInstallButton();
   await loadState();
-  await registerServiceWorker();
   renderCurrentView();
 }
 

@@ -1,27 +1,47 @@
 /*
   Gestione della PWA installation prompt.
+  Registra il Service Worker il prima possibile per soddisfare i criteri di installabilità.
 */
 
 let installPrompt = null;
 let isAppInstalled = false;
 let beforeinstallpromptCaught = false;
 
+console.log('🔧 pwaHandler.js caricato');
+
+// Registra il SW IMMEDIATAMENTE per soddisfare i criteri di installabilità PWA
+// Deve avvenire prima che il browser decida se mostrare beforeinstallprompt
+if ('serviceWorker' in navigator) {
+  console.log('🔧 Registrazione SW in corso...');
+  navigator.serviceWorker.register('/sw.js')
+    .then(reg => {
+      console.log('✅ Service Worker registrato:', reg.scope);
+    })
+    .catch(error => {
+      console.warn('❌ Service Worker registration fallito:', error);
+    });
+} else {
+  console.warn('⚠️ Service Worker non supportato');
+}
+
 // Verifica se l'app è già installata
 window.addEventListener('appinstalled', () => {
   isAppInstalled = true;
   hideInstallButton();
-  console.log('✅ App installata');
+  console.log('✅ App installata con successo');
 });
 
 // **CRUCIALE**: Cattura il beforeinstallprompt non appena disponibile
-// Deve essere fatto il prima possibile, prima che l'utente faccia click
+// Questo listener è CRITICO e deve essere il primo ad essere registrato
+console.log('🔧 Registrazione listener beforeinstallprompt...');
 window.addEventListener('beforeinstallprompt', (e) => {
-  console.log('🎉 beforeinstallprompt CATTURATO!');
+  console.log('🎉 *** beforeinstallprompt CATTURATO! *** 🎉');
   e.preventDefault();
   installPrompt = e;
   beforeinstallpromptCaught = true;
   updateButtonState();
-});
+}, false);
+console.log('✅ Listener beforeinstallprompt registrato');
 
 function hideInstallButton() {
   const btn = document.getElementById('installAppBtn');
@@ -63,19 +83,32 @@ export function triggerInstallPrompt() {
   }
 }
 
-// Inizializza
+// Inizializza pulsante install
 function initInstallButton() {
   console.log('🚀 Inizializzazione install button');
   if (!isAppInstalled) {
     showInstallButton();
   }
-  
-  // Log stato dopo 1 secondo (per verificare se beforeinstallprompt è stato catturato)
+
+  // Diagnostica dopo un breve delay
   setTimeout(() => {
-    console.log('📊 Stato dopo 1s - beforeinstallprompt catturato:', beforeinstallpromptCaught);
-  }, 1000);
+    console.log('📊 === PWA DIAGNOSTICA ===');
+    console.log('   beforeinstallprompt catturato:', beforeinstallpromptCaught);
+    console.log('   installPrompt disponibile:', !!installPrompt);
+    console.log('   App già installata:', isAppInstalled);
+    console.log('   Protocollo:', window.location.protocol);
+    console.log('   Manifesto caricato:', document.querySelector('link[rel="manifest"]') !== null);
+
+    if (!beforeinstallpromptCaught && window.location.protocol === 'https:') {
+      console.warn('⚠️ beforeinstallprompt NON catturato su HTTPS - possibile problema di installabilità');
+      console.warn('   Controlla: manifest.webmanifest, icons, service worker, theme-color');
+    } else if (!beforeinstallpromptCaught && window.location.protocol !== 'https:') {
+      console.log('ℹ️ beforeinstallprompt non disponibile su localhost (normale in development)');
+    }
+  }, 2000);
 }
 
+// Inizializza quando il DOM è pronto
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', initInstallButton);
 } else {
