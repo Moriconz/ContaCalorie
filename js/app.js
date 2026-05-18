@@ -440,6 +440,16 @@ function attachBottomNav() {
   });
 }
 
+function attachInstallButton() {
+  const installBtn = document.getElementById('installAppBtn');
+  if (installBtn) {
+    installBtn.addEventListener('click', () => {
+      console.log('📲 Pulsante install cliccato');
+      triggerInstallPrompt();
+    });
+  }
+}
+
 function attachThemeToggle() {
   themeToggle.addEventListener('click', () => {
     document.documentElement.classList.toggle('dark');
@@ -460,6 +470,7 @@ async function registerServiceWorker() {
 async function init() {
   attachBottomNav();
   attachThemeToggle();
+  attachInstallButton();
   await loadState();
   await registerServiceWorker();
   renderCurrentView();

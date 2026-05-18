@@ -1,59 +1,64 @@
 /*
   Gestione della PWA installation prompt.
-  Cattura beforeinstallprompt, mostra il pulsante custom, gestisce l'evento appinstalled.
 */
 
 let installPrompt = null;
 let isAppInstalled = false;
 
-// Verifica se l'app è già installata (dopo l'installazione)
+// Verifica se l'app è già installata
 window.addEventListener('appinstalled', () => {
   isAppInstalled = true;
-  const installBtn = document.getElementById('installAppBtn');
-  if (installBtn) {
-    installBtn.style.display = 'none';
-  }
-  console.log('PWA installata con successo');
+  hideInstallButton();
 });
 
-// Cattura il beforeinstallprompt (Android Chrome, Brave, Edge, ecc.)
-// Se non viene catturato, il pulsante rimane visibile comunque
+// Cattura il beforeinstallprompt
 window.addEventListener('beforeinstallprompt', (e) => {
   e.preventDefault();
   installPrompt = e;
-  console.log('beforeinstallprompt catturato');
-  
-  const installBtn = document.getElementById('installAppBtn');
-  if (installBtn) {
-    installBtn.style.display = 'flex';
-  }
+  console.log('✅ beforeinstallprompt catturato');
 });
 
+function hideInstallButton() {
+  const btn = document.getElementById('installAppBtn');
+  if (btn) btn.style.display = 'none';
+}
+
+function showInstallButton() {
+  const btn = document.getElementById('installAppBtn');
+  if (btn) btn.style.display = 'flex';
+}
+
 export function triggerInstallPrompt() {
-  console.log('triggerInstallPrompt chiamato, installPrompt:', !!installPrompt);
+  console.log('🔵 triggerInstallPrompt cliccato');
   
   if (installPrompt) {
-    // Se abbiamo il beforeinstallprompt, usalo
+    console.log('✅ Usando beforeinstallprompt nativo');
     installPrompt.prompt();
     installPrompt.userChoice.then((choiceResult) => {
       if (choiceResult.outcome === 'accepted') {
-        console.log('Utente ha accettato l\'installazione');
-        isAppInstalled = true;
-      } else {
-        console.log('Utente ha rifiutato l\'installazione');
+        hideInstallButton();
       }
       installPrompt = null;
-    });
+    }).catch(e => console.error('❌ Errore prompt:', e));
   } else {
-    // Se il beforeinstallprompt non è stato catturato, mostra istruzioni
-    alert('Per installare l\'app:\n\n1. Premi il menu (⋮) in alto a destra\n2. Seleziona "Installa app" o "Aggiungi alla schermata home"');
+    console.log('⚠️ beforeinstallprompt non disponibile - mostrando alert');
+    alert('📲 Per installare l\'app:\n\n1. Premi il menu (⋮)\n2. Seleziona "Installa app"');
   }
 }
 
-export function isInstallAvailable() {
-  return installPrompt !== null && !isAppInstalled;
-}
+// Inizializza - mostra pulsante al caricamento (a meno che già installata)
+document.addEventListener('DOMContentLoaded', () => {
+  console.log('📱 App caricata');
+  if (!isAppInstalled) {
+    showInstallButton();
+  }
+});
 
-export function isInstalled() {
-  return isAppInstalled;
+// Fallback se DOMContentLoaded già passato
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', () => {
+    if (!isAppInstalled) showInstallButton();
+  });
+} else {
+  if (!isAppInstalled) showInstallButton();
 }
