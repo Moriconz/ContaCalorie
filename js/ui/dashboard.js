@@ -39,12 +39,11 @@ export function renderDashboard(state, summary, warnings) {
 
 function renderTargetCard(label, data, colorVar) {
   const ratio = Math.min(100, Math.max(0, data.percent));
-  const colorValue = getComputedStyle(document.documentElement).getPropertyValue(`--${colorVar}`).trim();
   return `
     <div class="card summary-card">
       <strong>${label}</strong>
       <span>${data.actual}/${data.target} ${label === 'Calorie' ? 'kcal' : 'g'}</span>
-      <div class="bar-visual"><div class="bar-fill" style="width:${ratio}%;background:${colorValue};"></div></div>
+      <div class="bar-visual"><div class="bar-fill" style="width:${ratio}%;background:var(--${colorVar});"></div></div>
       <span class="small-muted">${data.percent.toFixed(0)}% del target</span>
     </div>
   `;
