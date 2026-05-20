@@ -8,7 +8,7 @@
   position: fixed;
   inset: 0;
   overflow: hidden;
-  z-index: -1;
+  z-index: 0;
   background: linear-gradient(135deg, #050716 0%, #0a1023 100%);
   transform: translateZ(0);
   backface-visibility: hidden;
@@ -17,8 +17,8 @@
 .blob {
   position: absolute;
   border-radius: 50%;
-  filter: blur(15px);
-  opacity: 1.2;
+  filter: blur(8px);
+  opacity: 1.0;
   will-change: transform;
   transform: translateZ(0);
   backface-visibility: hidden;
@@ -101,13 +101,13 @@ html[data-theme="light"] .bg-container {
 }
 
 html[data-theme="light"] .blob {
-  filter: blur(25px);
-  opacity: 0.8;
+  filter: blur(8px);
+  opacity: 1;
   mix-blend-mode: multiply;
 }
 
 html[data-theme="light"] .blob-1 {
-  background: radial-gradient(circle at 30% 30%, rgba(100, 200, 255, 0.4), transparent 70%);
+  background: radial-gradient(circle at 30% 30%, rgba(100, 200, 255, 0.6), transparent 70%);
   width: 45vw;
   height: 45vw;
   top: -20vh;
@@ -116,7 +116,7 @@ html[data-theme="light"] .blob-1 {
 }
 
 html[data-theme="light"] .blob-2 {
-  background: radial-gradient(circle at 70% 70%, rgba(200, 150, 255, 0.3), transparent 65%);
+  background: radial-gradient(circle at 70% 70%, rgba(200, 150, 255, 0.5), transparent 65%);
   width: 40vw;
   height: 40vw;
   top: 10vh;
@@ -126,7 +126,7 @@ html[data-theme="light"] .blob-2 {
 }
 
 html[data-theme="light"] .blob-3 {
-  background: radial-gradient(circle at 40% 40%, rgba(255, 170, 200, 0.35), transparent 70%);
+  background: radial-gradient(circle at 40% 40%, rgba(255, 170, 200, 0.55), transparent 70%);
   width: 35vw;
   height: 35vw;
   bottom: -15vh;
@@ -136,7 +136,7 @@ html[data-theme="light"] .blob-3 {
 }
 
 html[data-theme="light"] .blob-4 {
-  background: radial-gradient(circle at 50% 50%, rgba(150, 220, 255, 0.25), transparent 70%);
+  background: radial-gradient(circle at 50% 50%, rgba(150, 220, 255, 0.45), transparent 70%);
   width: 30vw;
   height: 30vw;
   top: 40vh;
@@ -218,10 +218,10 @@ html[data-theme="light"] .blob-4 {
   }
 
   html[data-theme="dark"] .blob {
-    filter: blur(50px);
+    filter: blur(6px);
   }
 
   html[data-theme="light"] .blob {
-    filter: blur(70px);
+    filter: blur(8px);
   }
 }

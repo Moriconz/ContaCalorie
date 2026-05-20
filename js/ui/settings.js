@@ -27,6 +27,100 @@ export function renderSettings() {
         </button>
       </div>
 
+      <!-- SEZIONE IMPOSTAZIONI ATTIVITÀ -->
+      <div class="settings-section" style="margin-bottom: 2rem; padding-bottom: 1.5rem; border-bottom: 1px solid var(--color-border);">
+        <h3 style="margin-bottom: 1rem;">💪 Impostazioni Attività</h3>
+
+        <!-- Energy Model -->
+        <div style="margin-bottom: 1.5rem;">
+          <label style="display: block; font-weight: 600; margin-bottom: 0.75rem;">Modello Energetico</label>
+          <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+            <label style="display: flex; align-items: center; gap: 0.75rem; cursor: pointer;">
+              <input type="radio" name="energyModel" value="tdee_plus_extras" class="activity-pref" style="cursor: pointer;">
+              <span><strong>TDEE Base + Attività Extra</strong></span>
+            </label>
+            <div class="small-muted" style="margin-left: 1.75rem; margin-bottom: 0.5rem; font-size: 0.8rem;">Calorie baseline sedentarie + aggiunte dalle attività</div>
+
+            <label style="display: flex; align-items: center; gap: 0.75rem; cursor: pointer;">
+              <input type="radio" name="energyModel" value="tdee_with_factor" class="activity-pref" style="cursor: pointer;">
+              <span><strong>TDEE con Activity Factor</strong></span>
+            </label>
+            <div class="small-muted" style="margin-left: 1.75rem; margin-bottom: 0.5rem; font-size: 0.8rem;">TDEE calcolato moltiplicando baseline × fattore attività</div>
+          </div>
+        </div>
+
+        <!-- Activity Factor (shown only if tdee_with_factor) -->
+        <div id="activityFactorSection" style="display: none; margin-bottom: 1.5rem; padding: 1rem; background: var(--glass-secondary); border-radius: 8px;">
+          <label style="display: block; font-weight: 600; margin-bottom: 0.75rem;">Activity Factor</label>
+          <div style="display: grid; grid-template-columns: 1fr 0.5fr; gap: 0.75rem;">
+            <input type="range" id="activityFactor" min="1.2" max="1.9" step="0.025" style="width: 100%;" class="activity-pref">
+            <div style="text-align: center; padding: 0.5rem; background: var(--surface-strong); border-radius: 6px; font-weight: 600;" id="activityFactorValue">1.375</div>
+          </div>
+          <div class="small-muted" style="margin-top: 0.5rem; font-size: 0.8rem;">
+            1.2=Sedentario | 1.375=Moderato | 1.55=Attivo | 1.725=Molto attivo
+          </div>
+        </div>
+
+        <!-- Double Counting Prevention -->
+        <div style="margin-bottom: 1.5rem;">
+          <label style="display: flex; align-items: center; gap: 1rem; cursor: pointer;">
+            <input id="avoidDoubleCountingWalking" type="checkbox" class="activity-pref" style="cursor: pointer;">
+            <span><strong>Evita doppio conteggio passi+walking</strong></span>
+          </label>
+          <div class="small-muted" style="margin-left: 2rem; margin-top: 0.5rem; font-size: 0.8rem;">
+            Se attivato, non conta sia i passi sincronizzati che la cardio "walking" nello stesso giorno
+          </div>
+        </div>
+
+        <!-- Include Steps in Expenditure -->
+        <div style="margin-bottom: 1.5rem;">
+          <label style="display: flex; align-items: center; gap: 1rem; cursor: pointer;">
+            <input id="includeStepsInTdee" type="checkbox" class="activity-pref" style="cursor: pointer;">
+            <span><strong>Includi passi nel calcolo TDEE</strong></span>
+          </label>
+        </div>
+
+        <!-- Step Goal -->
+        <div style="margin-bottom: 1.5rem;">
+          <label style="display: block; font-weight: 600; margin-bottom: 0.5rem;">Target Passi Giornalieri</label>
+          <div style="display: grid; grid-template-columns: 1fr 0.4fr; gap: 0.75rem;">
+            <input type="range" id="stepGoal" min="3000" max="20000" step="1000" style="width: 100%;" class="activity-pref">
+            <div style="text-align: center; padding: 0.5rem; background: var(--surface-strong); border-radius: 6px; font-weight: 600;" id="stepGoalValue">10000</div>
+          </div>
+        </div>
+
+        <!-- Eat Back Mode -->
+        <div style="margin-bottom: 1.5rem;">
+          <label style="display: block; font-weight: 600; margin-bottom: 0.75rem;">Modalità Eat-Back</label>
+          <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+            <label style="display: flex; align-items: center; gap: 0.75rem; cursor: pointer;">
+              <input type="radio" name="eatBackMode" value="none" class="activity-pref" style="cursor: pointer;">
+              <span>Non mangiare indietro</span>
+            </label>
+            <label style="display: flex; align-items: center; gap: 0.75rem; cursor: pointer;">
+              <input type="radio" name="eatBackMode" value="partial" class="activity-pref" style="cursor: pointer;">
+              <span>Parziale</span>
+            </label>
+            <label style="display: flex; align-items: center; gap: 0.75rem; cursor: pointer;">
+              <input type="radio" name="eatBackMode" value="full" class="activity-pref" style="cursor: pointer;">
+              <span>Completo</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Eat Back Ratio (shown only if partial) -->
+        <div id="eatBackRatioSection" style="display: none; margin-bottom: 1.5rem; padding: 1rem; background: var(--glass-secondary); border-radius: 8px;">
+          <label style="display: block; font-weight: 600; margin-bottom: 0.75rem;">Percentuale da Mangiare Indietro</label>
+          <div style="display: grid; grid-template-columns: 1fr 0.4fr; gap: 0.75rem;">
+            <input type="range" id="eatBackRatio" min="0" max="1" step="0.05" style="width: 100%;" class="activity-pref">
+            <div style="text-align: center; padding: 0.5rem; background: var(--surface-strong); border-radius: 6px; font-weight: 600;" id="eatBackRatioValue">30%</div>
+          </div>
+          <div class="small-muted" style="margin-top: 0.5rem; font-size: 0.8rem;">
+            0% = Non mangiare indietro | 100% = Mangiare tutte le kcal bruciate
+          </div>
+        </div>
+      </div>
+
       <!-- SEZIONE BACKUP & RECOVERY -->
       <div class="settings-section" style="margin-bottom: 2rem; padding-bottom: 1.5rem; border-bottom: 1px solid var(--color-border);">
         <h3 style="margin-bottom: 1rem;">💾 Backup & Recupero Dati</h3>
@@ -56,6 +150,34 @@ export function renderSettings() {
 
         <!-- Status message -->
         <div id="backupStatusMsg" style="display: none; padding: 1rem; border-radius: 8px; margin-top: 1rem;"></div>
+      </div>
+
+      <!-- SEZIONE MODALITÀ AVANZATA -->
+      <div class="settings-section" style="margin-bottom: 2rem; padding-bottom: 1.5rem; border-bottom: 1px solid var(--color-border);">
+        <h3 style="margin-bottom: 1rem;">🔬 Modalità Avanzata</h3>
+        
+        <label style="display: flex; align-items: center; gap: 1rem; cursor: pointer; margin-bottom: 1rem;">
+          <input id="advancedModeToggle" type="checkbox" style="width: 18px; height: 18px; cursor: pointer;">
+          <span><strong>Abilita tracking composizione corporea</strong></span>
+        </label>
+
+        <div id="advancedModeInfo" style="background: rgba(100, 150, 255, 0.1); padding: 1rem; border-radius: 8px; border-left: 4px solid #6496FF; color: var(--color-text-secondary); font-size: 0.9rem; line-height: 1.6; display: none;">
+          <p style="margin: 0.5rem 0;"><strong>⚠️ SPERIMENTALE</strong></p>
+          <p style="margin: 0.5rem 0;">Questa feature usa stima algoritmica, NON è equivalente a DEXA/BIA.</p>
+          <p style="margin: 0.5rem 0;"><strong>Cosa misura:</strong></p>
+          <ul style="margin: 0.5rem 0; padding-left: 1.5rem;">
+            <li>Bilancio calorico (intake - TDEE)</li>
+            <li>Intake proteico medio</li>
+            <li>Sessioni pesi registrate (RPE)</li>
+          </ul>
+          <p style="margin: 0.5rem 0;"><strong>Limitazioni:</strong></p>
+          <ul style="margin: 0.5rem 0; padding-left: 1.5rem;">
+            <li>Variabilità ±1-2 kg per ritenzione idrica/glicogeno</li>
+            <li>Richiede aderenza costante ai dati</li>
+            <li>Usa come TENDENZA, non valore assoluto</li>
+          </ul>
+          <p style="margin: 0.5rem 0;"><strong>💡 Consiglio:</strong> Calibra con DEXA/BIA ogni 4-8 settimane.</p>
+        </div>
       </div>
 
       <!-- SEZIONE INFORMAZIONI -->
@@ -135,6 +257,9 @@ export function bindSettingsEvents(container, callbacks) {
     editProfileBtn.addEventListener('click', callbacks.onEditProfile);
   }
 
+  // Activity preferences binding
+  bindActivityPreferences(container);
+
   // Debug buttons
   const logDbStatsBtn = container.querySelector('#logDbStatsBtn');
   logDbStatsBtn?.addEventListener('click', async () => {
@@ -166,6 +291,29 @@ export function bindSettingsEvents(container, callbacks) {
     const state = (await import('../appBootstrap.js')).getBootstrapState();
     output.textContent = JSON.stringify(state, null, 2);
   });
+
+
+  // Advanced mode toggle
+  const advancedToggle = container.querySelector('#advancedModeToggle');
+  const advancedInfo = container.querySelector('#advancedModeInfo');
+  
+  if (advancedToggle) {
+    // Carica lo stato salvato
+    const advancedEnabled = localStorage.getItem('advancedMode') === 'true';
+    advancedToggle.checked = advancedEnabled;
+    if (advancedEnabled) advancedInfo.style.display = 'block';
+    
+    // Toggle listener
+    advancedToggle.addEventListener('change', (e) => {
+      const isEnabled = e.target.checked;
+      localStorage.setItem('advancedMode', isEnabled);
+      advancedInfo.style.display = isEnabled ? 'block' : 'none';
+      
+      if (isEnabled) {
+        showStatusMessage(container.querySelector('#backupStatusMsg'), '✅ Modalità avanzata abilitata', 'success');
+      }
+    });
+  }
 }
 
 /**
@@ -321,6 +469,112 @@ function showStatusMessage(element, message, type = 'info') {
 /**
  * Mostra dialog di conferma
  */
+async function bindActivityPreferences(container) {
+  const { loadActivityPreferences, saveActivityPreferences } = await import('../storage.js');
+  const prefs = await loadActivityPreferences() || getDefaultActivityPrefs();
+
+  // Energy model radios
+  const energyModelRadios = container.querySelectorAll('input[name="energyModel"]');
+  const activityFactorSection = container.querySelector('#activityFactorSection');
+  const activityFactor = container.querySelector('#activityFactor');
+  const activityFactorValue = container.querySelector('#activityFactorValue');
+
+  energyModelRadios.forEach(radio => {
+    radio.checked = radio.value === prefs.energyModel;
+    radio.addEventListener('change', async (e) => {
+      prefs.energyModel = e.target.value;
+      activityFactorSection.style.display = prefs.energyModel === 'tdee_with_factor' ? 'block' : 'none';
+      await saveActivityPreferences(prefs);
+    });
+  });
+
+  // Activity factor slider
+  if (activityFactor) {
+    activityFactor.value = prefs.activityFactor || 1.375;
+    activityFactor.addEventListener('change', async (e) => {
+      prefs.activityFactor = parseFloat(e.target.value);
+      activityFactorValue.textContent = prefs.activityFactor.toFixed(3);
+      await saveActivityPreferences(prefs);
+    });
+    activityFactorValue.textContent = (prefs.activityFactor || 1.375).toFixed(3);
+    activityFactorSection.style.display = prefs.energyModel === 'tdee_with_factor' ? 'block' : 'none';
+  }
+
+  // Double counting prevention
+  const avoidDoubleCountingWalking = container.querySelector('#avoidDoubleCountingWalking');
+  if (avoidDoubleCountingWalking) {
+    avoidDoubleCountingWalking.checked = prefs.avoidDoubleCountingWalking !== false;
+    avoidDoubleCountingWalking.addEventListener('change', async (e) => {
+      prefs.avoidDoubleCountingWalking = e.target.checked;
+      await saveActivityPreferences(prefs);
+    });
+  }
+
+  // Include steps in TDEE
+  const includeStepsInTdee = container.querySelector('#includeStepsInTdee');
+  if (includeStepsInTdee) {
+    includeStepsInTdee.checked = prefs.includeStepsInTdee !== false;
+    includeStepsInTdee.addEventListener('change', async (e) => {
+      prefs.includeStepsInTdee = e.target.checked;
+      await saveActivityPreferences(prefs);
+    });
+  }
+
+  // Step goal slider
+  const stepGoalSlider = container.querySelector('#stepGoal');
+  const stepGoalValue = container.querySelector('#stepGoalValue');
+  if (stepGoalSlider) {
+    stepGoalSlider.value = prefs.stepGoal || 10000;
+    stepGoalSlider.addEventListener('change', async (e) => {
+      prefs.stepGoal = parseInt(e.target.value);
+      stepGoalValue.textContent = prefs.stepGoal.toLocaleString('it-IT');
+      await saveActivityPreferences(prefs);
+    });
+    stepGoalValue.textContent = (prefs.stepGoal || 10000).toLocaleString('it-IT');
+  }
+
+  // Eat back mode radios
+  const eatBackModeRadios = container.querySelectorAll('input[name="eatBackMode"]');
+  const eatBackRatioSection = container.querySelector('#eatBackRatioSection');
+  const eatBackRatioSlider = container.querySelector('#eatBackRatio');
+  const eatBackRatioValue = container.querySelector('#eatBackRatioValue');
+
+  eatBackModeRadios.forEach(radio => {
+    radio.checked = radio.value === prefs.eatBackMode;
+    radio.addEventListener('change', async (e) => {
+      prefs.eatBackMode = e.target.value;
+      eatBackRatioSection.style.display = prefs.eatBackMode === 'partial' ? 'block' : 'none';
+      await saveActivityPreferences(prefs);
+    });
+  });
+
+  // Eat back ratio slider
+  if (eatBackRatioSlider) {
+    eatBackRatioSlider.value = (prefs.eatBackRatio || 0.3);
+    eatBackRatioSlider.addEventListener('change', async (e) => {
+      prefs.eatBackRatio = parseFloat(e.target.value);
+      eatBackRatioValue.textContent = Math.round(prefs.eatBackRatio * 100) + '%';
+      await saveActivityPreferences(prefs);
+    });
+    eatBackRatioValue.textContent = Math.round((prefs.eatBackRatio || 0.3) * 100) + '%';
+    eatBackRatioSection.style.display = prefs.eatBackMode === 'partial' ? 'block' : 'none';
+  }
+}
+
+function getDefaultActivityPrefs() {
+  return {
+    energyModel: 'tdee_plus_extras',
+    activityFactor: 1.375,
+    avoidDoubleCountingWalking: true,
+    eatBackMode: 'partial',
+    eatBackRatio: 0.3,
+    includeStepsInTdee: true,
+    stepGoal: 10000,
+    includeStrengthInExpenditure: true,
+    includeCardioInExpenditure: true
+  };
+}
+
 function showConfirmDialog(title, message) {
   return new Promise((resolve) => {
     // Crea un modal semplice

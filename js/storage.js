@@ -4,8 +4,8 @@
 */
 
 const DB_NAME = 'ContaCalorieDB';
-const DB_VERSION = 3;
-const STORE_NAMES = ['userProfile', 'userFoods', 'mealEntries', 'remoteFoods', 'weightsSessions', 'cardioSessions', 'dailyWeights', 'bodyCompBaselines'];
+const DB_VERSION = 5;
+const STORE_NAMES = ['userProfile', 'userFoods', 'mealEntries', 'remoteFoods', 'weightsSessions', 'cardioSessions', 'dailyWeights', 'bodyCompBaselines', 'recipes', 'dailySteps', 'activityPreferences', 'strengthSessions'];
 
 function openDB() {
   return new Promise((resolve, reject) => {
@@ -288,5 +288,220 @@ export async function deleteBodyCompBaseline(dateBaseline) {
     await withStore('bodyCompBaselines', 'readwrite', store => store.delete(dateBaseline));
   } catch (error) {
     console.warn('Storage: errore eliminazione body comp baseline:', error);
+  }
+}
+
+// === RECIPES (DB v4) ===
+
+export async function saveRecipe(recipe) {
+  try {
+    const withTimestamp = {
+      ...recipe,
+      id: recipe.id || crypto.randomUUID(),
+      createdAt: recipe.createdAt || new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+    await withStore('recipes', 'readwrite', store => store.put(withTimestamp));
+    return withTimestamp;
+  } catch (error) {
+    console.warn('Storage: errore salvataggio ricetta:', error);
+    throw error;
+  }
+}
+
+export async function loadRecipes() {
+  try {
+    return await withStore('recipes', 'readonly', store => {
+      const request = store.getAll();
+      request.onsuccess = () => {};
+      return request;
+    });
+  } catch {
+    return [];
+  }
+}
+
+export async function loadRecipeById(id) {
+  try {
+    return await withStore('recipes', 'readonly', store => store.get(id));
+  } catch {
+    return null;
+  }
+}
+
+export async function updateRecipe(id, updates) {
+  try {
+    const existing = await withStore('recipes', 'readonly', store => store.get(id));
+    if (!existing) throw new Error(`Ricetta ${id} non trovata`);
+
+    const updated = {
+      ...existing,
+      ...updates,
+      id,
+      updatedAt: new Date().toISOString()
+    };
+    await withStore('recipes', 'readwrite', store => store.put(updated));
+    return updated;
+  } catch (error) {
+    console.warn('Storage: errore aggiornamento ricetta:', error);
+    throw error;
+  }
+}
+
+export async function deleteRecipe(id) {
+  try {
+    await withStore('recipes', 'readwrite', store => store.delete(id));
+  } catch (error) {
+    console.warn('Storage: errore eliminazione ricetta:', error);
+    throw error;
+  }
+}
+
+// === STRENGTH SESSIONS (DB v5 - optional detailed exercises) ===
+
+export async function saveStrengthSession(session) {
+  try {
+    const sessionWithMeta = {
+      ...session,
+      id: session.id || crypto.randomUUID(),
+      createdAt: session.createdAt || new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+    await withStore('strengthSessions', 'readwrite', store => store.put(sessionWithMeta));
+  } catch (error) {
+    console.warn('Storage: errore salvataggio strength session:', error);
+  }
+}
+
+export async function loadStrengthSessionsByDateRange(startDate, endDate) {
+  try {
+    const all = await withStore('strengthSessions', 'readonly', store => store.getAll());
+    return all.filter(s => s.date >= startDate && s.date <= endDate);
+  } catch {
+    return [];
+  }
+}
+
+export async function updateStrengthSession(id, updates) {
+  try {
+    const existing = await withStore('strengthSessions', 'readonly', store => store.get(id));
+    if (!existing) throw new Error(`Strength session ${id} non trovata`);
+    const updated = { ...existing, ...updates, updatedAt: new Date().toISOString() };
+    await withStore('strengthSessions', 'readwrite', store => store.put(updated));
+  } catch (error) {
+    console.warn('Storage: errore aggiornamento strength session:', error);
+  }
+}
+
+export async function deleteStrengthSession(id) {
+  try {
+    await withStore('strengthSessions', 'readwrite', store => store.delete(id));
+  } catch (error) {
+    console.warn('Storage: errore eliminazione strength session:', error);
+  }
+}
+
+// === DAILY STEPS (DB v5) ===
+
+export async function saveDailySteps(stepsRecord) {
+  try {
+    const record = {
+      ...stepsRecord,
+      id: stepsRecord.id || stepsRecord.date,
+      updatedAt: new Date().toISOString()
+    };
+    await withStore('dailySteps', 'readwrite', store => store.put(record));
+  } catch (error) {
+    console.warn('Storage: errore salvataggio daily steps:', error);
+  }
+}
+
+export async function loadDailyStepsByDate(date) {
+  try {
+    return await withStore('dailySteps', 'readonly', store => store.get(date));
+  } catch {
+    return null;
+  }
+}
+
+export async function loadDailyStepsByDateRange(startDate, endDate) {
+  try {
+    const all = await withStore('dailySteps', 'readonly', store => store.getAll());
+    return all.filter(s => s.date >= startDate && s.date <= endDate).sort((a, b) => new Date(a.date) - new Date(b.date));
+  } catch {
+    return [];
+  }
+}
+
+export async function deleteDailySteps(date) {
+  try {
+    await withStore('dailySteps', 'readwrite', store => store.delete(date));
+  } catch (error) {
+    console.warn('Storage: errore eliminazione daily steps:', error);
+  }
+}
+
+// === ACTIVITY PREFERENCES (DB v5) ===
+
+export async function saveActivityPreferences(prefs) {
+  try {
+    const toSave = {
+      ...prefs,
+      id: 'current',
+      updatedAt: new Date().toISOString()
+    };
+    await withStore('activityPreferences', 'readwrite', store => store.put(toSave));
+  } catch (error) {
+    console.warn('Storage: errore salvataggio activity preferences:', error);
+  }
+}
+
+export async function loadActivityPreferences() {
+  try {
+    return await withStore('activityPreferences', 'readonly', store => store.get('current'));
+  } catch {
+    return null;
+  }
+}
+
+// === ENHANCEMENTS TO EXISTING SESSIONS (DB v5) ===
+
+export async function loadWeightsSessionsByDateRange(startDate, endDate) {
+  try {
+    const all = await withStore('weightsSessions', 'readonly', store => store.getAll());
+    return all.filter(s => s.data >= startDate && s.data <= endDate).sort((a, b) => new Date(a.data) - new Date(b.data));
+  } catch {
+    return [];
+  }
+}
+
+export async function updateWeightsSession(id, updates) {
+  try {
+    const existing = await withStore('weightsSessions', 'readonly', store => store.get(id));
+    if (!existing) throw new Error(`Weights session ${id} non trovata`);
+    const updated = { ...existing, ...updates };
+    await withStore('weightsSessions', 'readwrite', store => store.put(updated));
+  } catch (error) {
+    console.warn('Storage: errore aggiornamento weights session:', error);
+  }
+}
+
+export async function loadCardioSessionsByDateRange(startDate, endDate) {
+  try {
+    const all = await withStore('cardioSessions', 'readonly', store => store.getAll());
+    return all.filter(s => s.data >= startDate && s.data <= endDate).sort((a, b) => new Date(a.data) - new Date(b.data));
+  } catch {
+    return [];
+  }
+}
+
+export async function updateCardioSession(id, updates) {
+  try {
+    const existing = await withStore('cardioSessions', 'readonly', store => store.get(id));
+    if (!existing) throw new Error(`Cardio session ${id} non trovata`);
+    const updated = { ...existing, ...updates };
+    await withStore('cardioSessions', 'readwrite', store => store.put(updated));
+  } catch (error) {
+    console.warn('Storage: errore aggiornamento cardio session:', error);
   }
 }

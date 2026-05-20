@@ -12,8 +12,8 @@ html[data-theme="dark"] {
   --bg-main: #050716;
   --bg-secondary: #0a1023;
   --bg-tertiary: #101530;
-  --glass-primary: rgba(10, 16, 35, 0.32);
-  --glass-secondary: rgba(15, 20, 40, 0.22);
+  --glass-primary: rgba(10, 16, 35, 0.60);
+  --glass-secondary: rgba(15, 20, 40, 0.40);
   --glass-border: rgba(255, 255, 255, 0.12);
   --glass-border-hover: rgba(255, 255, 255, 0.22);
   --glass-border-active: rgba(255, 255, 255, 0.35);
@@ -30,8 +30,8 @@ html[data-theme="dark"] {
   --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.4);
   --shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.5);
   --shadow-glow: 0 0 20px rgba(255, 110, 199, 0.3);
-  --blur-glass: blur(20px);
-  --blur-glass-hover: blur(25px);
+  --blur-glass: blur(24px);
+  --blur-glass-hover: blur(28px);
   --radius-sm: 8px;
   --radius-md: 12px;
   --radius-lg: 16px;
@@ -49,8 +49,8 @@ html[data-theme="light"] {
   --bg-main: #f0f4ff;
   --bg-secondary: #e8f0ff;
   --bg-tertiary: #e0e8ff;
-  --glass-primary: rgba(255, 255, 255, 0.35);
-  --glass-secondary: rgba(255, 255, 255, 0.2);
+  --glass-primary: rgba(255, 255, 255, 0.65);
+  --glass-secondary: rgba(255, 255, 255, 0.45);
   --glass-border: rgba(255, 255, 255, 0.9);
   --glass-border-hover: rgba(255, 255, 255, 0.95);
   --glass-border-active: rgba(100, 150, 255, 0.5);
@@ -67,8 +67,8 @@ html[data-theme="light"] {
   --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.12);
   --shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.15);
   --shadow-glow: 0 0 20px rgba(100, 150, 255, 0.15);
-  --blur-glass: blur(15px);
-  --blur-glass-hover: blur(18px);
+  --blur-glass: blur(18px);
+  --blur-glass-hover: blur(22px);
   --radius-sm: 8px;
   --radius-md: 12px;
   --radius-lg: 16px;
@@ -83,7 +83,7 @@ html[data-theme="light"] {
 /* DEFAULTS & BACKWARD COMPAT */
 :root {
   --bg-main: #050716;
-  --glass-primary: rgba(10, 16, 35, 0.32);
+  --glass-primary: rgba(10, 16, 35, 0.60);
   --glass-border: rgba(255, 255, 255, 0.12);
   --accent-magenta: #ff6ec7;
   --accent-orange: #ff9a44;
@@ -92,7 +92,7 @@ html[data-theme="light"] {
   --text-secondary: #cbd5e1;
   --text-muted: #94a3b8;
   --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.4);
-  --blur-glass: blur(20px);
+  --blur-glass: blur(24px);
   --radius-lg: 16px;
   --duration-normal: 180ms;
   --easing-smooth: cubic-bezier(0.22, 0.61, 0.36, 1);

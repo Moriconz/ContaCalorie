@@ -33,31 +33,31 @@ export function bindUserFoodsEvents(container, callbacks) {
 export function renderUserFoodForm(food = {}) {
   const safeFood = food || {};
   return `
-    <section class="section card">
-      <h1>${safeFood.id ? 'Modifica' : 'Nuovo'} alimento</h1>
-      <label>Nome<input id="userFoodName" value="${safeFood.nome || ''}"></label>
-      <label>Porzione base<input id="userFoodServing" value="${safeFood.porzioneBase || '100 g'}"></label>
-      <div class="field-grid">
-        <label>Kcal per 100 g<input id="userFoodKcal" type="number" min="0" max="2000" value="${safeFood.per100g?.kcal || 0}"></label>
-        <label>Proteine per 100 g<input id="userFoodProt" type="number" min="0" max="200" value="${safeFood.per100g?.proteine || 0}"></label>
-      </div>
-      <div class="field-grid">
-        <label>Carboidrati per 100 g<input id="userFoodCarb" type="number" min="0" max="300" value="${safeFood.per100g?.carboidrati || 0}"></label>
-        <label>Grassi per 100 g<input id="userFoodFat" type="number" min="0" max="200" value="${safeFood.per100g?.grassi || 0}"></label>
-      </div>
-      <div class="field-grid">
-        <label>Zuccheri per 100 g<input id="userFoodSugar" type="number" min="0" max="200" value="${safeFood.per100g?.zuccheri || 0}"></label>
-        <label>Fibra per 100 g<input id="userFoodFiber" type="number" min="0" max="100" value="${safeFood.per100g?.fibra || 0}"></label>
-      </div>
-      <div class="field-grid">
-        <label>Grassi saturi<input id="userFoodSatFat" type="number" min="0" max="100" value="${safeFood.per100g?.grassi_saturi || 0}"></label>
-        <label>Sodio (mg per 100 g)<input id="userFoodSodium" type="number" min="0" max="10000" value="${safeFood.per100g?.sodioMg || 0}"></label>
-      </div>
-      <div class="field-grid">
-        <button id="saveUserFood" class="primary" type="button">Salva</button>
-        <button id="cancelUserFood" class="secondary" type="button">Annulla</button>
-      </div>
-    </section>
+    <section class="section">
+          <h1>${safeFood.id ? 'Modifica' : 'Nuovo'} alimento</h1>
+          <label>Nome<input id="userFoodName" value="${safeFood.nome || ''}"></label>
+          <label>Porzione base<input id="userFoodServing" value="${safeFood.porzioneBase || '100 g'}"></label>
+          <div class="field-grid">
+            <label>Kcal per 100 g<input id="userFoodKcal" type="number" min="0" max="2000" value="${safeFood.per100g?.kcal || 0}"></label>
+            <label>Proteine per 100 g<input id="userFoodProt" type="number" min="0" max="200" value="${safeFood.per100g?.proteine || 0}"></label>
+          </div>
+          <div class="field-grid">
+            <label>Carboidrati per 100 g<input id="userFoodCarb" type="number" min="0" max="300" value="${safeFood.per100g?.carboidrati || 0}"></label>
+            <label>Grassi per 100 g<input id="userFoodFat" type="number" min="0" max="200" value="${safeFood.per100g?.grassi || 0}"></label>
+          </div>
+          <div class="field-grid">
+            <label>Zuccheri per 100 g<input id="userFoodSugar" type="number" min="0" max="200" value="${safeFood.per100g?.zuccheri || 0}"></label>
+            <label>Fibra per 100 g<input id="userFoodFiber" type="number" min="0" max="100" value="${safeFood.per100g?.fibra || 0}"></label>
+          </div>
+          <div class="field-grid">
+            <label>Grassi saturi<input id="userFoodSatFat" type="number" min="0" max="100" value="${safeFood.per100g?.grassi_saturi || 0}"></label>
+            <label>Sodio (mg per 100 g)<input id="userFoodSodium" type="number" min="0" max="10000" value="${safeFood.per100g?.sodioMg || 0}"></label>
+          </div>
+          <div class="field-grid">
+            <button id="saveUserFood" class="primary" type="button">Salva</button>
+            <button id="cancelUserFood" class="secondary" type="button">Annulla</button>
+          </div>
+        </section>
   `;
 }
 
