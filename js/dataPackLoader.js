@@ -1,357 +1,174 @@
 /**
- * Data Pack Loader — carica e ricerca alimenti nei data pack JSON
- * Supporta piatti italiani, piatti esteri, e fast food con fuzzy matching
+ * Data Pack Loader — Gestione data pack alimenti con ricerca fuzzy
+ * Priorità: fast food → alimenti italiani completi (CREA/BDA 516 voci) → piatti esteri
  */
 
-let _italianDishes = null;
+let _italianFoodsFull = null;
 let _foreignDishes = null;
 let _fastFood = null;
 
-const CONFIG = {
-  levenshteinThreshold: 3,
-  substringMatchWeight: 0.5,
-  useSubstringFallback: true
-};
+async function loadItalianFoodsFull() {
+  if (_italianFoodsFull) return _italianFoodsFull;
+  try {
+    const response = await fetch('/data/italian_foods_full.json');
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const data = await response.json();
+    _italianFoodsFull = data.foods || [];
+    console.log(`📦 Caricati ${_italianFoodsFull.length} alimenti italiani (CREA/BDA completo)`);
+    return _italianFoodsFull;
+  } catch (error) {
+    console.warn('⚠️ Errore caricamento italian_foods_full.json:', error);
+    return [];
+  }
+}
 
-/**
- * Normalizza il nome dell'alimento:
- * - minuscole
- * - NFD decomposizione e rimozione accenti
- * - trim
- */
-function normalizeName(str) {
-  if (!str || typeof str !== 'string') return '';
+async function loadForeignDishes() {
+  if (_foreignDishes) return _foreignDishes;
+  try {
+    const response = await fetch('/data/foreign_common_in_italy.json');
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const data = await response.json();
+    _foreignDishes = data.dishes || [];
+    console.log(`📦 Caricati ${_foreignDishes.length} piatti esteri`);
+    return _foreignDishes;
+  } catch (error) {
+    console.warn('⚠️ Errore caricamento foreign_common_in_italy.json:', error);
+    return [];
+  }
+}
+
+async function loadFastFood() {
+  if (_fastFood) return _fastFood;
+  try {
+    const response = await fetch('/data/fast_food_chains_it.json');
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const data = await response.json();
+    _fastFood = [];
+    for (const chain in data.chains || {}) {
+      const items = data.chains[chain];
+      if (Array.isArray(items)) {
+        _fastFood.push(...items.map(item => ({ ...item, chain })));
+      }
+    }
+    console.log(`📦 Caricati ${_fastFood.length} item fast food`);
+    return _fastFood;
+  } catch (error) {
+    console.warn('⚠️ Errore caricamento fast_food_chains_it.json:', error);
+    return [];
+  }
+}
+
+export function normalizeName(str) {
+  if (!str) return '';
   return str
     .toLowerCase()
     .normalize('NFD')
     .replace(/[̀-ͯ]/g, '')
+    .replace(/[^\w\s]/g, ' ')
+    .replace(/\s+/g, ' ')
     .trim();
 }
 
-/**
- * Calcola la distanza di Levenshtein tra due stringhe (edit distance)
- */
 function levenshtein(a, b) {
-  const m = a.length;
-  const n = b.length;
+  const maxLen = Math.max(a.length, b.length);
+  if (maxLen > 50) return maxLen;
 
-  if (m === 0) return n;
-  if (n === 0) return m;
+  const matrix = Array(b.length + 1).fill(null).map(() => Array(a.length + 1).fill(0));
+  for (let i = 0; i <= a.length; i++) matrix[0][i] = i;
+  for (let j = 0; j <= b.length; j++) matrix[j][0] = j;
 
-  const prev = new Array(n + 1);
-  const curr = new Array(n + 1);
-
-  for (let j = 0; j <= n; j++) prev[j] = j;
-
-  for (let i = 1; i <= m; i++) {
-    curr[0] = i;
-    for (let j = 1; j <= n; j++) {
+  for (let j = 1; j <= b.length; j++) {
+    for (let i = 1; i <= a.length; i++) {
       const cost = a[i - 1] === b[j - 1] ? 0 : 1;
-      curr[j] = Math.min(
-        curr[j - 1] + 1,
-        prev[j] + 1,
-        prev[j - 1] + cost
+      matrix[j][i] = Math.min(
+        matrix[j][i - 1] + 1,
+        matrix[j - 1][i] + 1,
+        matrix[j - 1][i - 1] + cost
       );
     }
-    [prev, curr[0], prev[0]] = [curr, curr[0], prev[0]];
   }
-
-  return prev[n];
+  return matrix[b.length][a.length];
 }
 
-/**
- * Fuzzy match: restituisce score 0-100
- * - Se il candidato contiene la query come sottostringa, score alto (80+)
- * - Altrimenti usa Levenshtein distance
- */
-function fuzzyScore(query, candidate) {
+export function fuzzyMatch(query, candidate) {
   const q = normalizeName(query);
   const c = normalizeName(candidate);
+  if (!q || !c) return false;
+  if (c === q || c.includes(q) || q.includes(c)) return true;
 
-  if (!q) return 100;
-  if (q === c) {
-    console.log(`      ⭐ Match esatto: "${query}" = "${candidate}"`);
-    return 100;
-  }
-
-  // Match esatto su parole singole
-  if (c.includes(q)) {
-    console.log(`      ⭐ Substring match: "${query}" in "${candidate}" (85)`);
-    return 85;
-  }
-  if (q.includes(c)) {
-    console.log(`      ⭐ Reverse substring: "${candidate}" in "${query}" (80)`);
-    return 80;
-  }
-
-  // Levenshtein
-  const distance = levenshtein(q, c);
   const maxLen = Math.max(q.length, c.length);
-  const similarityPercent = Math.max(0, 100 - (distance / maxLen) * 100);
-  const score = Math.round(similarityPercent);
-
-  if (score >= 65) {
-    console.log(`      📊 Levenshtein: "${query}" vs "${candidate}" = ${score}`);
-  }
-
-  return score;
+  const threshold = Math.ceil(maxLen * 0.3);
+  return levenshtein(q, c) <= threshold;
 }
 
-/**
- * Carica lazy il data pack dei piatti italiani
- */
-async function loadItalianDishes() {
-  if (_italianDishes) return _italianDishes;
-  try {
-    let url = '/data/italian_regional_dishes.json';
-    // Supporta sia percorsi assoluti che relativi
-    const response = await fetch(url).catch(async () => {
-      // Fallback: prova percorso relativo
-      return fetch('./data/italian_regional_dishes.json');
-    });
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    _italianDishes = await response.json();
-    console.log('✅ Piatti italiani caricati:', _italianDishes.dishes?.length || 0, 'alimenti');
-    return _italianDishes;
-  } catch (error) {
-    console.error('❌ Errore caricamento piatti italiani:', error);
-    return { dishes: [] };
-  }
-}
-
-/**
- * Carica lazy il data pack dei piatti esteri
- */
-async function loadForeignDishes() {
-  if (_foreignDishes) return _foreignDishes;
-  try {
-    let url = '/data/foreign_common_in_italy.json';
-    const response = await fetch(url).catch(async () => {
-      return fetch('./data/foreign_common_in_italy.json');
-    });
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    _foreignDishes = await response.json();
-    console.log('✅ Piatti esteri caricati:', _foreignDishes.dishes?.length || 0, 'alimenti');
-    return _foreignDishes;
-  } catch (error) {
-    console.error('❌ Errore caricamento piatti esteri:', error);
-    return { dishes: [] };
-  }
-}
-
-/**
- * Carica lazy il data pack dei fast food
- */
-async function loadFastFood() {
-  if (_fastFood) return _fastFood;
-  try {
-    let url = '/data/fast_food_chains_it.json';
-    const response = await fetch(url).catch(async () => {
-      return fetch('./data/fast_food_chains_it.json');
-    });
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    _fastFood = await response.json();
-    const totalProducts = Object.values(_fastFood.chains || {}).reduce((sum, arr) => sum + (arr?.length || 0), 0);
-    console.log('✅ Fast food caricati:', totalProducts, 'prodotti');
-    return _fastFood;
-  } catch (error) {
-    console.error('❌ Errore caricamento fast food:', error);
-    return { chains: {} };
-  }
-}
-
-/**
- * Calcola macros dal piatto trovato, scalate ai grammi richiesti
- * Supporta sia dati per 100g che dati per porzione (fast food)
- */
-function calcMacrosFromPack(item, grams) {
-  // Fast food: hanno kcal per porzione intera
-  if (item.kcal !== undefined && item.kcal !== null && !item.kcal_100g) {
-    // Calcola per 100g basandosi su kcal totale e portionSize
-    const scale = grams / (item.portionSize || 100);
-    return {
-      kcal: Math.round(item.kcal * scale),
-      proteine: Math.round((item.protein || 0) * scale * 10) / 10,
-      carboidrati: Math.round((item.carb || 0) * scale * 10) / 10,
-      grassi: Math.round((item.fat || 0) * scale * 10) / 10,
-      fibra: Math.round((item.fiber || 0) * scale * 10) / 10,
-      zuccheri: Math.round((item.sugar || 0) * scale * 10) / 10
-    };
-  }
-
-  // Piatti italiani e esteri: hanno kcal_100g
-  if (item.kcal_100g && item.kcal_100g > 0) {
-    const scale = grams / 100;
-    return {
-      kcal: Math.round(item.kcal_100g * scale),
-      proteine: Math.round((item.protein_100g || 0) * scale * 10) / 10,
-      carboidrati: Math.round((item.carb_100g || 0) * scale * 10) / 10,
-      grassi: Math.round((item.fat_100g || 0) * scale * 10) / 10,
-      fibra: Math.round((item.fiber_100g || 0) * scale * 10) / 10,
-      zuccheri: Math.round((item.sugar_100g || 0) * scale * 10) / 10
-    };
-  }
-
-  // Nessun dato nutrizionale disponibile
-  console.warn(`⚠️ Nessun dato nutrizionale per "${item.name}"`);
-  return null;
-}
-
-/**
- * Pipeline di ricerca nei data pack:
- * 1. Fast food (McDonald's, BK, KFC)
- * 2. Piatti italiani
- * 3. Piatti esteri
- *
- * Restituisce:
- * { found: true, item, dataPackType, macros, source, region, city, chain } | { found: false }
- */
 export async function searchInDataPacks(foodName, grams) {
-  if (!foodName || grams <= 0) {
-    console.log('🔍 searchInDataPacks: input non valido');
-    return { found: false };
-  }
+  console.log(`🔍 Ricerca data pack: "${foodName}" (${grams}g)`);
 
-  console.log(`🔍 searchInDataPacks: cercando "${foodName}" (${grams}g)`);
-
-  const minScoreThreshold = 65;
-  let bestMatch = null;
-  let bestScore = 0;
-  let bestType = null;
-
-  // 1. Cerca nei fast food
-  try {
-    const fastFoodData = await loadFastFood();
-    console.log(`   📍 Cercando in fast food (${Object.values(fastFoodData.chains || {}).reduce((s, arr) => s + (arr?.length || 0), 0)} prodotti)`);
-    for (const chain in fastFoodData.chains) {
-      for (const item of fastFoodData.chains[chain]) {
-        const score = fuzzyScore(foodName, item.name);
-        if (score > bestScore && score >= minScoreThreshold) {
-          console.log(`      ✓ Match in ${chain}: "${item.name}" (score: ${score})`);
-          bestScore = score;
-          bestMatch = item;
-          bestType = 'fastfood';
-        }
-      }
-    }
-  } catch (error) {
-    console.error('❌ Errore caricamento fast food:', error);
-  }
-
-  // Se già trovato con buon score nei fast food, non cercare altrove
-  if (bestScore >= 90) {
-    const macros = calcMacrosFromPack(bestMatch, grams);
-    if (macros) {
-      console.log(`   ✅ FOUND in fastfood: "${bestMatch.name}" (${bestMatch.chain})`);
+  // 1. Fast food (priorità alta)
+  const fastFood = await loadFastFood();
+  for (const item of fastFood) {
+    if (fuzzyMatch(foodName, item.name)) {
+      console.log(`✅ Trovato FAST FOOD: ${item.chain} - ${item.name}`);
       return {
         found: true,
-        item: bestMatch,
-        dataPackType: 'fastfood',
-        macros,
-        source: bestMatch.chain,
-        chain: bestMatch.chain,
-        region: null,
-        city: null
+        item,
+        dataPackType: 'fast_food',
+        kcal: Math.round((item.kcal / (item.portionSize || 100)) * grams),
+        protein: Math.round((item.protein / (item.portionSize || 100)) * grams * 10) / 10,
+        carb: Math.round((item.carb / (item.portionSize || 100)) * grams * 10) / 10,
+        fat: Math.round((item.fat / (item.portionSize || 100)) * grams * 10) / 10,
+        fiber: item.fiber ? Math.round((item.fiber / (item.portionSize || 100)) * grams * 10) / 10 : 0,
+        sugar: item.sugar ? Math.round((item.sugar / (item.portionSize || 100)) * grams * 10) / 10 : 0,
+        source: item.chain,
+        chain: item.chain
       };
     }
   }
 
-  // 2. Cerca nei piatti italiani
-  try {
-    const italianData = await loadItalianDishes();
-    console.log(`   📍 Cercando in piatti italiani (${italianData.dishes?.length || 0} alimenti)`);
-    for (const dish of (italianData.dishes || [])) {
-      const score = fuzzyScore(foodName, dish.name);
-      if (score > bestScore && score >= minScoreThreshold) {
-        console.log(`      ✓ Match: "${dish.name}" (score: ${score})`);
-        bestScore = score;
-        bestMatch = dish;
-        bestType = 'italian';
-      }
-    }
-  } catch (error) {
-    console.error('❌ Errore caricamento piatti italiani:', error);
-  }
-
-  // Se trovato con buon score, ritorna
-  if (bestScore >= 80 && bestType === 'italian') {
-    const macros = calcMacrosFromPack(bestMatch, grams);
-    if (macros) {
-      console.log(`   ✅ FOUND in italian: "${bestMatch.name}" (${bestMatch.region})`);
+  // 2. Alimenti italiani completi (CREA/BDA)
+  const italianFoods = await loadItalianFoodsFull();
+  for (const food of italianFoods) {
+    if (fuzzyMatch(foodName, food.name_it)) {
+      console.log(`✅ Trovato ITALIANO (CREA/BDA): ${food.name_it}`);
       return {
         found: true,
-        item: bestMatch,
-        dataPackType: 'italian',
-        macros,
-        source: bestMatch.source,
-        region: bestMatch.region || null,
-        city: bestMatch.city || null
+        item: food,
+        dataPackType: 'italian_crea',
+        kcal: food.kcal_100g ? Math.round(food.kcal_100g * grams / 100) : null,
+        protein: food.protein_100g ? Math.round(food.protein_100g * grams / 100 * 10) / 10 : null,
+        carb: food.carb_100g ? Math.round(food.carb_100g * grams / 100 * 10) / 10 : null,
+        fat: food.fat_100g ? Math.round(food.fat_100g * grams / 100 * 10) / 10 : null,
+        fiber: food.fiber_100g ? Math.round(food.fiber_100g * grams / 100 * 10) / 10 : null,
+        sugar: food.sugars_100g ? Math.round(food.sugars_100g * grams / 100 * 10) / 10 : null,
+        source: 'CREA',
+        category: food.category,
+        subtype: food.subtype,
+        state: food.state
       };
     }
   }
 
-  // 3. Cerca nei piatti esteri
-  try {
-    const foreignData = await loadForeignDishes();
-    console.log(`   📍 Cercando in piatti esteri (${foreignData.dishes?.length || 0} piatti)`);
-    for (const dish of (foreignData.dishes || [])) {
-      const score = fuzzyScore(foodName, dish.name);
-      if (score > bestScore && score >= minScoreThreshold) {
-        console.log(`      ✓ Match: "${dish.name}" (score: ${score})`);
-        bestScore = score;
-        bestMatch = dish;
-        bestType = 'foreign';
-      }
-    }
-  } catch (error) {
-    console.error('❌ Errore caricamento piatti esteri:', error);
-  }
-
-  // Se trovato nei piatti esteri
-  if (bestScore >= 80 && bestType === 'foreign') {
-    const macros = calcMacrosFromPack(bestMatch, grams);
-    if (macros) {
-      console.log(`   ✅ FOUND in foreign: "${bestMatch.name}" (${bestMatch.cuisine})`);
+  // 3. Piatti esteri (fallback)
+  const foreignDishes = await loadForeignDishes();
+  for (const dish of foreignDishes) {
+    if (fuzzyMatch(foodName, dish.name)) {
+      console.log(`✅ Trovato ESTERO: ${dish.name} (${dish.cuisine})`);
       return {
         found: true,
-        item: bestMatch,
+        item: dish,
         dataPackType: 'foreign',
-        macros,
-        source: 'EuroFIR',
-        cuisine: bestMatch.cuisine || null,
-        region: null,
-        city: null
+        kcal: dish.kcal_100g ? Math.round(dish.kcal_100g * grams / 100) : null,
+        protein: dish.protein_100g ? Math.round(dish.protein_100g * grams / 100 * 10) / 10 : null,
+        carb: dish.carb_100g ? Math.round(dish.carb_100g * grams / 100 * 10) / 10 : null,
+        fat: dish.fat_100g ? Math.round(dish.fat_100g * grams / 100 * 10) / 10 : null,
+        fiber: dish.fiber_100g ? Math.round(dish.fiber_100g * grams / 100 * 10) / 10 : null,
+        sugar: dish.sugar_100g ? Math.round(dish.sugar_100g * grams / 100 * 10) / 10 : null,
+        source: 'EuroFIR/USDA',
+        cuisine: dish.cuisine
       };
     }
   }
 
-  // Se fastfood era il migliore ma non ha macros completi, prova comunque
-  if (bestType === 'fastfood') {
-    const macros = calcMacrosFromPack(bestMatch, grams);
-    if (macros) {
-      console.log(`   ✅ FOUND in fastfood (retry): "${bestMatch.name}"`);
-      return {
-        found: true,
-        item: bestMatch,
-        dataPackType: 'fastfood',
-        macros,
-        source: bestMatch.chain,
-        chain: bestMatch.chain,
-        region: null,
-        city: null
-      };
-    }
-  }
-
-  console.log(`   ❌ Nessun match trovato (best score: ${bestScore}/${minScoreThreshold})`);
+  console.log(`❌ Non trovato nei data pack`);
   return { found: false };
-}
-
-/**
- * Pulisce i cache (utile per testing o refresh forzato)
- */
-export function clearCaches() {
-  _italianDishes = null;
-  _foreignDishes = null;
-  _fastFood = null;
 }

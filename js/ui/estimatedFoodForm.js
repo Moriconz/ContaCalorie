@@ -101,7 +101,14 @@ async function showEstimatedPreview(container, foodName, grams, callbacks) {
     console.log('📦 Data pack result:', dataPackResult);
     if (dataPackResult.found) {
       foundInDataPack = true;
-      estimatedMacros = dataPackResult.macros;
+      estimatedMacros = {
+        kcal: dataPackResult.kcal,
+        proteine: dataPackResult.protein,
+        carboidrati: dataPackResult.carb,
+        grassi: dataPackResult.fat,
+        fibra: dataPackResult.fiber || 0,
+        zuccheri: dataPackResult.sugar || 0
+      };
       dataPackInfo = {
         type: dataPackResult.dataPackType,
         source: dataPackResult.source,

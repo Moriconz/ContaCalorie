@@ -3,6 +3,7 @@
   Inizializza lo stato, carica i dati locali e gestisce il rendering delle viste.
 */
 
+import { bootstrapApp } from './appBootstrap.js';
 import { loadUserProfile, saveUserProfile, loadUserFoods, saveUserFoods, loadMealsByDate, saveMealEntries, loadAllMeals, saveWeightsSession, loadWeightsSessions, saveCardioSession, loadCardioSessions, saveDailyWeight, loadDailyWeights, loadAllWeightsSessions, loadAllCardioSessions, deleteWeightsSession, deleteCardioSession, saveBodyCompBaseline, loadBodyCompBaselines } from './storage.js';
 import { calculateEnergyTargets, aggregateDailySummary, calculateMacrosForAmount, buildNutritionWarning } from './nutritionEngine.js';
 import { searchFoods, getFoodDetails } from './nutritionDataProvider.js';
@@ -15,6 +16,7 @@ import { renderWeekView, bindWeekViewEvents } from './ui/weekView.js';
 import { renderPhotoAnalysis, bindPhotoAnalysisEvents } from './ui/photoAnalysis.js';
 import { renderEstimatedFoodForm, bindEstimatedFoodFormEvents } from './ui/estimatedFoodForm.js';
 import { renderWeightLoss, bindWeightLossEvents } from './ui/weightLoss.js';
+import { renderSettings, bindSettingsEvents } from './ui/settings.js';
 import { triggerInstallPrompt } from './pwaHandler.js';
 import { aggregateDailyExercise, estimateWeightsCalories, estimateCardioCalories } from './activityEnergyEngine.js';
 import { getTheoreticalTDEE, getDailyEnergyBalance, getEnergyBalanceSummary, estimateAdaptiveTDEE } from './weightLossEstimator.js';
@@ -87,6 +89,9 @@ async function renderCurrentView() {
   }
   if (appState.currentView === 'weight') {
     return renderWeightLossView();
+  }
+  if (appState.currentView === 'settings') {
+    return renderSettingsView();
   }
   return renderDashboardView();
 }
@@ -744,8 +749,26 @@ function attachThemeToggle() {
   });
 }
 
+function renderSettingsView() {
+  mainContent.innerHTML = renderSettings();
+  bindSettingsEvents(mainContent, {
+    onEditProfile: async () => {
+      appState.currentView = 'dashboard';
+      renderOnboardingView();
+    }
+  });
+}
+
 
 async function init() {
+  // 1. CRITICO: Bootstrap della PWA (IndexedDB, storage persistente, SW)
+  const bootstrapOk = await bootstrapApp();
+  if (!bootstrapOk) {
+    console.error('❌ Bootstrap fallito, app non può avviarsi');
+    return;
+  }
+
+  // 2. Avvio normale dell'app
   attachBottomNav();
   attachThemeToggle();
   attachInstallButton();
@@ -754,6 +777,6 @@ async function init() {
 }
 
 init().catch(error => {
-  console.error('Errore inizializzazione app', error);
+  console.error('❌ Errore inizializzazione app', error);
   reportError('Errore caricamento app. Ricarica la pagina.');
 });

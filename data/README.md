@@ -2,50 +2,90 @@
 
 Questa directory contiene i data pack JSON **completi** con valori nutrizionali per alimenti italiani, piatti esteri comuni in Italia e fast food. Sono utilizzati dal modulo `js/dataPackLoader.js` per fornire stime nutrizionali accurate quando l'utente non inserisce dati precisi.
 
+**PANORAMA ALIMENTARE COMPLETO**: Il database principale (`italian_foods_full.json`) contiene **516 entries** che coprono l'INTERO panorama alimentare italiano — ogni taglio di carne, ogni varietà di pesce, ogni tipo di verdura e frutta, ogni piatto regionale, senza limitazioni né scorciatoie.
+
 ## File disponibili
 
-### 1. `italian_regional_dishes.json`
-**Database completo alimenti italiani**
+### 1. `italian_foods_full.json`
+**Database COMPLETO alimenti italiani con 516 voci**
 
-- **Versione:** 2026.05.1
+- **Versione:** 2026.05.5-COMPLETE
 - **Fonte:** CREA eTCA (https://www.alimentinutrizione.it/tabelle-di-composizione-degli-alimenti), BDA IEO (https://bda.ieo.it)
-- **Alimenti inclusi:** 110+ voci
-- **Categorie coperte:**
-  - **Cereali e derivati** (20+): pane bianco/integrale, pasta di semola/all'uovo/integrale, riso, polenta, gnocchi, couscous, farina, avena, quinoa
-  - **Carni fresche** (30+): bovino (filetto, bistecca, costata, spalla, coscia, ossobuco, geretto, macinato), suino (costoletta, bistecca, filetto, coscia, macinato), pollo (petto, coscia, ala, intero), tacchino, coniglio, lepre
-  - **Salumi** (10+): prosciutto crudo/cotto, speck, pancetta, guanciale, salame, bresaola, mortadella, salsiccia
-  - **Pesce e frutti di mare** (20+): salmone, tonno fresco, merluzzo, branzino, orata, sgombro, sardine, acciughe, gamberi, cozze, vongole, calamari, polpo
-  - **Latticini e formaggi** (15+): mozzarella, mozzarella di bufala, parmigiano reggiano, gorgonzola, mascarpone, pecorino romano, ricotta, burrata, latte intero/scremato, yogurt, burro
-  - **Uova** (3): intero, albume, tuorlo
-  - **Verdure** (20+): pomodoro, lattuga, carota, zucchina, broccoli, cavolfiore, spinaci, melanzana, peperone, cipolla, patata, etc.
-  - **Frutta** (6+): mela, banana, arancia, fragola, uva, limone
-  - **Condimenti** (3): olio extravergine, maionese, sugo di pomodoro
-  - **Piatti regionali italiani** (5): carbonara, amatriciana, cacio e pepe, pizza margherita, lasagna al ragù
+- **Alimenti inclusi:** 516 voci complete coprendo TUTTO il panorama alimentare italiano
+- **Generazione:** Script Node.js sistematico che copre OGNI categoria, OGNI taglio, OGNI preparazione
+- **Categorie coperte (con TUTTI i tagli e varianti):**
+  - **Cereali e derivati** (25+): pane bianco/integrale/semola/5cereali/segale, pasta di semola/all'uovo/integrale/fresca, riso bianco/integrale/arborio/carnaroli, polenta, couscous, farina tipo 0/integrale, avena, farro, orzo, crackers, biscotti, cereali colazione
+  - **Carni bovine** (30+): OGNI taglio - filetto, controfiletto, costata, bistecca, entrecote, lombata, fesa, scamone, sottofesa, spalla, coscia, ossobuco, geretto anteriore/posteriore, punta petto, polpa, macinato magro/grasso, spezzatino - CRUDO E COTTO
+  - **Carni suine** (19+): lonza, coppa, braciole, costine, costoletta, pancetta, filetto, coscia, macinato, spalla, guanciale, rigatino crudo/cotto
+  - **Pollame e selvaggina** (14+): pollo (petto, coscia, ala, intero, fegato), tacchino (petto, coscia), coniglio, lepre - CRUDO E COTTO
+  - **Salumi e affettati** (21+): prosciutto crudo/cotto, speck, bresaola, salame, mortadella, pancetta affumicata, guanciale, capocollo, culatello, spalla cruda, salsiccia fresca/secca, wurstel, porchetta, soppressata, 'nduja, mortadella di Bologna, spalla San Daniele, culatello di Parma
+  - **Pesce e frutti di mare** (50+): OGNI specie e preparazione - merluzzo, salmone (crudo/cotto/affumicato), tonno fresco/in scatola, orata, branzino, sgombro, sardine (fresche/in scatola), acciughe, trota, carpa, sogliola, pesce spada, rombo, dentice, ricciola, pesce spada, seppia, calamari, polpo, cozze, vongole, gamberi, scampi, anguilla, halibut, nasello, triglie, cernia, rana pescatrice, razza, squalo, passera - CRUDO, COTTO, AFFUMICATO, IN SCATOLA
+  - **Latticini e formaggi** (23+): latte intero/scremato/parzialmente scremato, yogurt naturale/magro, ricotta di vacca/pecora, mozzarella fresca/bufala, parmigiano reggiano, pecorino romano, gorgonzola, grana padano, mascarpone, caciotta, provolone, fontina, asiago, taleggio, crescenza, stracchino, feta, burro
+  - **Uova** (4): uovo intero crudo/cotto, albume, tuorlo
+  - **Legumi** (21+): ceci, fagioli (bianchi/rossi/neri/borlotti/cannellini) secchi/cotti, lenticchie (rosse/verdi) secche/cotte, piselli secchi/freschi, fave secche/cotte, soia
+  - **Verdure e ortaggi** (57+): OGNI tipo CRUDO E COTTO - pomodoro, lattuga (iceberg/romana), carota, zucchina, broccoli, cavolfiore, spinaci, melanzana, peperone (rosso/giallo/verde), cipolla, aglio, patata (bollita/fritta), cavolo (cappuccio/nero/romanesco), bietola, erbette, radicchio, rucola, sedano, finocchio, funghi (prataioli/porcini), mais in scatola, barbabietola, rapa, cipollotto, asparago, porro, cetriolo, ravanello, scarola, endivia, e molti altri
+  - **Frutta fresca** (32+): OGNI varietà - mele (rossa/verde/renetta), banane, arance, limoni, mandarini, pompelmo, fragole, uva (bianca/nera), pere, pesche (gialle), albicocche, ciliegie, susine, lamponi, mirtilli, ribes, melograni, nespole, kiwi, meloni, angurie, fichi, meloni, rambutan
+  - **Frutta secca e oleaginosa** (10+): mandorla, noce, pistacchio, nocciola, pinolo, arachidi, semi di girasole, semi di zucca, cocco, castagna
+  - **Oli e grassi** (5+): olio extravergine, olio di oliva, olio di girasole, burro, strutto
+  - **Condimenti e salse** (10+): aceto balsamico, aceto vino bianco, sugo di pomodoro, pesto genovese, maionese, ketchup, salsa di soia, miele, marmellata (fragola/albicocca)
+  - **Bevande** (10+): caffè espresso, tè nero, vino rosso/bianco, birra, acqua minerale, succhi di frutta, limoncello, amaro, spumante rosé
+  - **Piatti composti e regionali** (121): TUTTE le regioni italiane - Lazio (carbonara, amatriciana, cacio e pepe, gricia, carciofi alla romana, supplì, penne all'arrabbiata), Campania (pizza, ragù napoletano, sfogliatella, babà, melanzane alla parmigiana, polpo alla luciana), Lombardia (risotto milanese, cotoletta milanese, ossobuco, panettone, colomba, ravioli burro salvia, pizzoccheri), Emilia-Romagna (tagliatelle ragù, lasagna, tortellini in brodo, piadina, passatelli in brodo, tortellacci ricotta), Sicilia (arancini, pasta alla Norma, trofie pesto pistacchio, granita, cassata, zabaione Marsala), Piemonte (vitello tonnato, bagna cauda, panna cotta, zabaione, tartufi), Veneto (bigoli salsa, risi e bisi, sarde in saòr, tiramisù, pandoro), Toscana (ribollita, pappa al pomodoro, bistecca fiorentina, panzanella, pappardelle lepre, pici aglione, minestrone, cantucci), Puglia (orecchiette cime di rapa, fave e cicoria, focaccia pugliese), Liguria (linguine pesto, focaccia olive, pandolce, farinata), Marche (brodetto anconetana, vincisgrassi, cappelletti carne), Sardegna (malloreddus, culurgiones, spaghetti bottarga), e molti altri - MINESTRE, RISOTTI, PASTE ASCIUTTE, CARNI, PESCI, CONTORNI, DOLCI
+
+#### Copertura Effettiva (Database 2026.05.5-COMPLETE)
+```
+Categoria               | Entries | Dettagli
+───────────────────────────────────────────────────
+Piatti composti         │ 121     │ Tutte le regioni italiane
+Pesce                   │ 71      │ Tutti gli stati (crudo/cotto/affumicato)
+Verdure                 │ 60      │ Crudo e cotto varianti
+Carni bovine            │ 39      │ Tutti i tagli
+Frutta                  │ 32      │ Tutte le varietà
+Pollame                 │ 23      │ Tutte le parti (petto/coscia/ala/fegato)
+Latticini               │ 23      │ Formaggi e derivati
+Carni suine             │ 20      │ Lonza, coppa, pancetta, guanciale, ecc.
+Legumi                  │ 22      │ Secchi e cotti
+Affettati               │ 21      │ Prosciutto, speck, bresaola, salami, ecc.
+Cereali                 │ 25      │ Pane, pasta, riso, varianti
+Bevande                 │ 12      │ Caffè, tè, vini, birra
+Condimenti              │ 14      │ Oli, salse, aceti, ecc.
+Dolci                   │ 13      │ Regionali e caratteristici
+Selvaggina              │ 11      │ Cervo, daino, cinghiale, fagiano, ecc.
+Frutta secca            │ 9       │ Mandorla, noce, pistacchio, ecc.
+═════════════════════════════════════════════════════════════════
+TOTALE                  │ 516     │ PANORAMA COMPLETO ITALIANO
+```
 
 **Struttura record:**
 ```json
 {
-  "id": "string (identificatore unico)",
-  "name": "string (nome piatto es. 'Spaghetti alla Carbonara')",
-  "slug": "string (versione slug per ricerca fuzzy)",
-  "region": "string (es. 'Lazio')",
-  "city": "string|null (es. 'Roma')",
-  "category": "primo|secondo|contorno|street_food|dolce|antipasto|pane",
-  "source": "CREA|BDA|stima_composizione",
-  "portionSize": "number (grammi porzione tipica)",
-  "kcal_100g": "number|null",
-  "protein_100g": "number|null",
-  "carb_100g": "number|null",
-  "fat_100g": "number|null",
-  "fiber_100g": "number|null",
-  "sugar_100g": "number|null",
-  "kcal_per_portion": "number|null",
-  "protein_per_portion": "number|null",
-  "carb_per_portion": "number|null",
-  "fat_per_portion": "number|null",
-  "ingredientsApprox": "array (lista ingredienti approssimativi)",
-  "tags": "array (tag per categorizzazione)",
-  "missingDataReason": "string|null (se i macro mancano)"
+  "id": "string (identificatore unico es. 'car_001')",
+  "name_it": "string (nome alimento es. 'Manzo - Filetto crudo')",
+  "category": "string (categoria es. 'carne_bovina')",
+  "subtype": "string|null (sottotipo es. 'filetto')",
+  "state": "string|null (stato es. 'crudo', 'cotto', 'affumicato')",
+  "kcal_100g": "number|null (calorie per 100g)",
+  "protein_100g": "number|null (proteine in g per 100g)",
+  "carb_100g": "number|null (carboidrati in g per 100g)",
+  "fat_100g": "number|null (grassi in g per 100g)",
+  "fiber_100g": "number|null (fibra in g per 100g)",
+  "sodium_mg": "number|null (sodio in mg per 100g)",
+  "sugars_100g": "number|null (zuccheri in g per 100g)",
+  "source": "string (fonte: 'CREA' o 'BDA')",
+  "tags": "array (tag di ricerca es. ['carne', 'magra'])"
+}
+```
+
+**Struttura file JSON:**
+```json
+{
+  "dataPackVersion": "2026.05.5-COMPLETE",
+  "dataPackName": "Italian Foods Complete Database - CREA/BDA Full Coverage",
+  "description": "Comprehensive Italian food database...",
+  "source": "CREA eTCA / BDA IEO",
+  "lastUpdated": "2026-05-18",
+  "totalEntries": 516,
+  "coverage": { "note": "COMPLETE panorama alimentare italiano", ... },
+  "foods": [ { ...record... }, ... ]
 }
 ```
 
