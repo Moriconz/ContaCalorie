@@ -11,6 +11,7 @@
 import { guessTypicalCategoryFromName, getTypicalValuesForCategory, listAvailableCategories } from '../typicalValues.js';
 import { calculateMacrosForAmount } from '../nutritionEngine.js';
 import { searchInDataPacks } from '../dataPackLoader.js';
+import * as composedFoodForm from './composedFoodForm.js';
 
 export function renderEstimatedFoodForm() {
   return `
@@ -19,28 +20,30 @@ export function renderEstimatedFoodForm() {
       <p class="form-hint">Inserisci il nome e il peso, lasceremo che l'app stimi i valori nutrizionali.</p>
 
       <form id="estimatedFoodFormElem">
-        <div class="form-group">
-          <label for="estimFoodName">Nome alimento</label>
-          <input
-            type="text"
-            id="estimFoodName"
-            placeholder="es: pasta col sugo, pane dal forno, insalata mista"
-            required
-            autocomplete="off"
-          />
-        </div>
+        <div class="form-grid-2">
+          <div class="form-group">
+            <label for="estimFoodName">Nome alimento</label>
+            <input
+              type="text"
+              id="estimFoodName"
+              placeholder="es: pasta col sugo, pane dal forno, insalata mista"
+              required
+              autocomplete="off"
+            />
+          </div>
 
-        <div class="form-group">
-          <label for="estimFoodGrams">Peso (grammi)</label>
-          <input
-            type="number"
-            id="estimFoodGrams"
-            min="1"
-            max="1000"
-            value="100"
-            required
-          />
-          <span class="input-hint">Inserisci solo il peso, es: 200</span>
+          <div class="form-group">
+            <label for="estimFoodGrams">Peso (grammi)</label>
+            <input
+              type="number"
+              id="estimFoodGrams"
+              min="1"
+              max="1000"
+              value="100"
+              required
+            />
+            <span class="input-hint">Inserisci solo il peso, es: 200</span>
+          </div>
         </div>
 
         <button type="button" id="estimFoodPreview" class="button-primary">
@@ -172,17 +175,19 @@ async function showEstimatedPreview(container, foodName, grams, callbacks) {
 
   if (!foundInDataPack) {
     html += `
-      <div class="form-group">
-        <label for="estimCategorySelect">Categoria riconosciuta</label>
-        <select id="estimCategorySelect">
-    `;
-    categories.forEach(cat => {
-      const selected = cat === category ? 'selected' : '';
-      html += `<option value="${cat}" ${selected}>${formatCategoryLabel(cat)}</option>`;
-    });
-    html += `
-        </select>
-        <p class="input-hint">Se la categoria non è corretta, selezionane un'altra dalla lista.</p>
+      <div style="margin-bottom: 1.5rem;">
+        <div class="form-group">
+          <label for="estimCategorySelect">Categoria riconosciuta</label>
+          <select id="estimCategorySelect" style="margin-bottom: 0;">
+      `;
+      categories.forEach(cat => {
+        const selected = cat === category ? 'selected' : '';
+        html += `<option value="${cat}" ${selected}>${formatCategoryLabel(cat)}</option>`;
+      });
+      html += `
+          </select>
+          <p class="input-hint">Se la categoria non è corretta, selezionane un'altra dalla lista.</p>
+        </div>
       </div>
     `;
   }
@@ -226,7 +231,12 @@ async function showEstimatedPreview(container, foodName, grams, callbacks) {
       </div>
 
       <div class="form-actions">
-        <button type="button" id="estimConfirmBtn" class="button-primary">Aggiungi al pasto</button>
+        ${foundInDataPack ? `
+          <button type="button" id="estimComposeBtn" class="button-secondary">🍝 Componi il piatto</button>
+          <button type="button" id="estimConfirmBtn" class="button-primary">Aggiungi al pasto</button>
+        ` : `
+          <button type="button" id="estimConfirmBtn" class="button-primary">Aggiungi al pasto</button>
+        `}
         <button type="button" id="estimCancelBtn" class="button-secondary">Annulla</button>
       </div>
     </div>
@@ -246,6 +256,43 @@ async function showEstimatedPreview(container, foodName, grams, callbacks) {
         const newMacros = calculateMacrosForAmount(newFoodItem, grams);
         updateNutritionPreview(container, newMacros);
       }
+    });
+  }
+
+  // Componi il piatto (solo se trovato nel data pack)
+  const composeBtn = container.querySelector('#estimComposeBtn');
+  if (composeBtn) {
+    composeBtn.addEventListener('click', () => {
+      console.log('🍝 Switching to composed food form...');
+      container.innerHTML = composedFoodForm.renderComposedFoodForm();
+      composedFoodForm.bindComposedFoodEvents(container, {
+        onComposedFoodConfirm: async (composedData) => {
+          const composedFood = {
+            nome: foodName,
+            categoria: 'composed',
+            grammi: composedData.totals.totalGrams,
+            macroCalcolate: {
+              kcal: Math.round(composedData.totals.totalKcal),
+              proteine: Math.round(composedData.totals.totalProtein * 10) / 10,
+              carboidrati: Math.round(composedData.totals.totalCarb * 10) / 10,
+              grassi: Math.round(composedData.totals.totalFat * 10) / 10,
+              fibra: Math.round(composedData.totals.totalFiber * 10) / 10,
+              zuccheri: Math.round(composedData.totals.totalSugar * 10) / 10
+            },
+            origin: 'composed_from_ingredients',
+            source: 'COMPOSED',
+            ingredients: composedData.ingredients
+          };
+
+          if (callbacks.onConfirm) {
+            await callbacks.onConfirm(composedFood);
+          }
+        },
+        onCancel: () => {
+          console.log('🔙 Returning to estimated preview...');
+          showEstimatedPreview(container, foodName, grams, callbacks);
+        }
+      });
     });
   }
 

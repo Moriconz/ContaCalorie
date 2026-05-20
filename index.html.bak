@@ -13,10 +13,10 @@
   <link rel="manifest" href="/manifest.webmanifest" />
   
   <!-- Theme & Glassmorphism CSS -->
-  <link rel="stylesheet" href="css/theme.css?v=2" />
-  <link rel="stylesheet" href="css/glassmorphism.css?v=2" />
-  <link rel="stylesheet" href="css/background.css?v=2" />
-  <link rel="stylesheet" href="css/styles.css?v=2" />
+  <link rel="stylesheet" href="css/theme.css" />
+  <link rel="stylesheet" href="css/glassmorphism.css" />
+  <link rel="stylesheet" href="css/background.css" />
+  <link rel="stylesheet" href="css/styles.css" />
   
   <link rel="icon" href="icons/icon-192.svg" />
   <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
@@ -28,14 +28,11 @@
   </script>
   <script>
     // REGISTRA IL SERVICE WORKER SUBITO - IL PIÙ PRESTO POSSIBILE
-    // TEMPORARILY DISABLED FOR CSS DEBUGGING
-    /*
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('/sw.js').catch(e => {
         console.error('SW registration failed:', e);
       });
     }
-    */
 
     // Cattura beforeinstallprompt IL PIÙ PRESTO POSSIBILE
     window.__beforeInstallPromptEvent = null;
@@ -60,16 +57,6 @@
     <div class="blob blob-4"></div>
   </div>
 
-  <!-- Modal Template -->
-  <template id="modalTemplate">
-    <div class="modal-overlay">
-      <div class="modal-card">
-        <button class="modal-close" type="button" aria-label="Chiudi modale">✕</button>
-        <div class="modal-body"></div>
-      </div>
-    </div>
-  </template>
-
   <!-- Content wrapper -->
   <div class="content-wrapper">
     <div id="app" class="app-shell">
@@ -91,12 +78,8 @@
 
   <!-- App scripts -->
   <script type="module">
-    console.log('📱 Script module è INIZIATO');
-
     import { themeManager } from './js/themeManager.js';
-    import { init as initApp } from './js/app.js';
-
-    console.log('✅ Import completati, avvio app...');
+    import { initApp } from './js/app.js';
 
     // Inizializza tema manager
     console.log('🎨 ThemeManager inizializzato');

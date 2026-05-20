@@ -16,19 +16,6 @@ export function renderSettings() {
     <div class="settings-container" style="padding: 1rem; max-width: 600px; margin: 0 auto;">
       <h2>⚙️ Impostazioni</h2>
 
-      <!-- SEZIONE TEMA -->
-      <div class="settings-section" style="margin-bottom: 2rem; padding-bottom: 1.5rem; border-bottom: 1px solid var(--color-border);">
-        <h3 style="margin-bottom: 1rem;">🎨 Tema</h3>
-        <div style="display: flex; gap: 1rem; align-items: center;">
-          <button id="themeToggleBtn" class="button-secondary" style="flex: 1;">
-            Cambia a <span id="themeLabel">Modalità Scura</span>
-          </button>
-          <span style="font-size: 0.9rem; color: var(--color-text-secondary);">
-            Attuale: <strong id="currentTheme">Chiaro</strong>
-          </span>
-        </div>
-      </div>
-
       <!-- SEZIONE DATI PROFILO -->
       <div class="settings-section" style="margin-bottom: 2rem; padding-bottom: 1.5rem; border-bottom: 1px solid var(--color-border);">
         <h3 style="margin-bottom: 1rem;">👤 Profilo</h3>
@@ -120,14 +107,6 @@ export function bindSettingsEvents(container, callbacks) {
   // Update profile info
   updateProfileInfo(container);
   updateStorageInfo(container);
-
-  // Theme toggle
-  const themeToggleBtn = container.querySelector('#themeToggleBtn');
-  themeToggleBtn.addEventListener('click', () => {
-    const isDark = document.documentElement.classList.toggle('dark');
-    localStorage.setItem('theme', isDark ? 'dark' : 'light');
-    updateThemeLabel(container);
-  });
 
   // Export button
   const exportBtn = container.querySelector('#exportBtn');
@@ -228,23 +207,6 @@ async function updateStorageInfo(container) {
     }
   } catch (error) {
     console.warn('⚠️ Errore storage info:', error);
-  }
-}
-
-/**
- * Aggiorna label tema
- */
-function updateThemeLabel(container) {
-  const isDark = document.documentElement.classList.contains('dark');
-  const label = container.querySelector('#themeLabel');
-  const current = container.querySelector('#currentTheme');
-
-  if (isDark) {
-    label.textContent = 'Modalità Chiara';
-    current.textContent = 'Scuro';
-  } else {
-    label.textContent = 'Modalità Scura';
-    current.textContent = 'Chiaro';
   }
 }
 

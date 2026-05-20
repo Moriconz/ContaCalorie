@@ -629,7 +629,7 @@ function promptMealMoment() {
 
 function showModal(contentHtml, bind) {
   const fragment = modalTemplate.content.cloneNode(true);
-  const backdrop = fragment.querySelector('.modal-backdrop');
+  const backdrop = fragment.querySelector('.modal-overlay');
   const body = fragment.querySelector('.modal-body');
   body.innerHTML = contentHtml;
   const closeButton = fragment.querySelector('.modal-close');
@@ -641,12 +641,12 @@ function showModal(contentHtml, bind) {
     if (event.target === backdrop) closeHandler();
   });
   const appendedNode = document.body.appendChild(fragment);
-  const modalRoot = appendedNode.querySelector('.modal-backdrop') || document.body.querySelector('.modal-backdrop:last-of-type');
+  const modalRoot = appendedNode.querySelector('.modal-overlay') || document.body.querySelector('.modal-overlay:last-of-type');
   if (bind && modalRoot) bind(modalRoot);
 }
 
 function closeModal() {
-  const backdrop = document.querySelector('.modal-backdrop');
+  const backdrop = document.querySelector('.modal-overlay');
   if (backdrop) backdrop.remove();
 }
 
@@ -726,29 +726,6 @@ function openBodyCompBaselineForm(existingBaselines = []) {
   });
 }
 
-function attachThemeToggle() {
-  if (!themeToggle) {
-    console.warn('Theme toggle element not found');
-    return;
-  }
-
-  // Carica il tema salvato
-  const savedTheme = localStorage.getItem('theme');
-  if (savedTheme === 'dark') {
-    document.documentElement.classList.add('dark');
-    themeToggle.textContent = '🌙';
-  } else if (savedTheme === 'light') {
-    document.documentElement.classList.remove('dark');
-    themeToggle.textContent = '☀️';
-  }
-
-  themeToggle.addEventListener('click', () => {
-    const isDark = document.documentElement.classList.toggle('dark');
-    localStorage.setItem('theme', isDark ? 'dark' : 'light');
-    themeToggle.textContent = isDark ? '🌙' : '☀️';
-  });
-}
-
 function renderSettingsView() {
   mainContent.innerHTML = renderSettings();
   bindSettingsEvents(mainContent, {
@@ -759,24 +736,14 @@ function renderSettingsView() {
   });
 }
 
-
-async function init() {
-  // 1. CRITICO: Bootstrap della PWA (IndexedDB, storage persistente, SW)
+export async function init() {
   const bootstrapOk = await bootstrapApp();
   if (!bootstrapOk) {
     console.error('❌ Bootstrap fallito, app non può avviarsi');
     return;
   }
-
-  // 2. Avvio normale dell'app
   attachBottomNav();
-  attachThemeToggle();
   attachInstallButton();
   await loadState();
   renderCurrentView();
 }
-
-init().catch(error => {
-  console.error('❌ Errore inizializzazione app', error);
-  reportError('Errore caricamento app. Ricarica la pagina.');
-});

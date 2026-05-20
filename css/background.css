@@ -1,0 +1,227 @@
+/**
+ * ANIMATED BACKGROUNDS
+ * Sfondi dinamici con blob neon (dark) e pastello (light)
+ */
+
+/* DARK MODE BACKGROUND */
+.bg-container {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  z-index: -1;
+  background: linear-gradient(135deg, #050716 0%, #0a1023 100%);
+  transform: translateZ(0);
+  backface-visibility: hidden;
+}
+
+.blob {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(15px);
+  opacity: 1.2;
+  will-change: transform;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  mix-blend-mode: screen;
+}
+
+.blob-1 {
+  width: 35vw;
+  height: 35vw;
+  background: radial-gradient(circle at 30% 30%, #ff6ec7, transparent 65%);
+  top: -10vh;
+  left: -10vw;
+  animation: blobMove1 45s ease-in-out infinite;
+}
+
+.blob-2 {
+  width: 40vw;
+  height: 40vw;
+  background: radial-gradient(circle at 70% 70%, #ff9a44, transparent 60%);
+  top: 15vh;
+  right: -15vw;
+  animation: blobMove2 50s ease-in-out infinite;
+  animation-delay: -5s;
+}
+
+.blob-3 {
+  width: 30vw;
+  height: 30vw;
+  background: radial-gradient(circle at 40% 40%, #4cc9f0, transparent 70%);
+  bottom: -5vh;
+  left: 10vw;
+  animation: blobMove3 55s ease-in-out infinite;
+  animation-delay: -10s;
+}
+
+.blob-4 {
+  width: 25vw;
+  height: 25vw;
+  background: radial-gradient(circle at 50% 50%, #a855f7, transparent 65%);
+  top: 30vh;
+  left: 35vw;
+  animation: blobMove4 60s ease-in-out infinite;
+  animation-delay: -15s;
+}
+
+@keyframes blobMove1 {
+  0% { transform: translate3d(-5vw, 0, 0) scale(1); }
+  25% { transform: translate3d(8vw, 10vh, 0) scale(1.1); }
+  50% { transform: translate3d(-2vw, 5vh, 0) scale(0.95); }
+  75% { transform: translate3d(5vw, -5vh, 0) scale(1.05); }
+  100% { transform: translate3d(-5vw, 0, 0) scale(1); }
+}
+
+@keyframes blobMove2 {
+  0% { transform: translate3d(10vw, 5vh, 0) scale(1.1); }
+  25% { transform: translate3d(-5vw, -8vh, 0) scale(0.95); }
+  50% { transform: translate3d(3vw, -3vh, 0) scale(1); }
+  75% { transform: translate3d(8vw, 8vh, 0) scale(1.15); }
+  100% { transform: translate3d(10vw, 5vh, 0) scale(1.1); }
+}
+
+@keyframes blobMove3 {
+  0% { transform: translate3d(0, 8vh, 0) scale(0.9); }
+  25% { transform: translate3d(-8vw, 0, 0) scale(1.05); }
+  50% { transform: translate3d(5vw, -10vh, 0) scale(1); }
+  75% { transform: translate3d(-3vw, 5vh, 0) scale(0.95); }
+  100% { transform: translate3d(0, 8vh, 0) scale(0.9); }
+}
+
+@keyframes blobMove4 {
+  0% { transform: translate3d(0, 0, 0) scale(1); }
+  33% { transform: translate3d(5vw, 8vh, 0) scale(1.1); }
+  66% { transform: translate3d(-8vw, -5vh, 0) scale(0.85); }
+  100% { transform: translate3d(0, 0, 0) scale(1); }
+}
+
+/* LIGHT MODE BACKGROUND OVERRIDES */
+html[data-theme="light"] .bg-container {
+  background: linear-gradient(135deg, #f0f4ff 0%, #dfe9ff 50%, #efe6ff 100%);
+}
+
+html[data-theme="light"] .blob {
+  filter: blur(25px);
+  opacity: 0.8;
+  mix-blend-mode: multiply;
+}
+
+html[data-theme="light"] .blob-1 {
+  background: radial-gradient(circle at 30% 30%, rgba(100, 200, 255, 0.4), transparent 70%);
+  width: 45vw;
+  height: 45vw;
+  top: -20vh;
+  right: -10vw;
+  animation: blobMoveLight1 50s ease-in-out infinite;
+}
+
+html[data-theme="light"] .blob-2 {
+  background: radial-gradient(circle at 70% 70%, rgba(200, 150, 255, 0.3), transparent 65%);
+  width: 40vw;
+  height: 40vw;
+  top: 10vh;
+  left: -15vw;
+  animation: blobMoveLight2 55s ease-in-out infinite;
+  animation-delay: -8s;
+}
+
+html[data-theme="light"] .blob-3 {
+  background: radial-gradient(circle at 40% 40%, rgba(255, 170, 200, 0.35), transparent 70%);
+  width: 35vw;
+  height: 35vw;
+  bottom: -15vh;
+  right: 5vw;
+  animation: blobMoveLight3 60s ease-in-out infinite;
+  animation-delay: -12s;
+}
+
+html[data-theme="light"] .blob-4 {
+  background: radial-gradient(circle at 50% 50%, rgba(150, 220, 255, 0.25), transparent 70%);
+  width: 30vw;
+  height: 30vw;
+  top: 40vh;
+  left: 25vw;
+  animation: blobMoveLight4 65s ease-in-out infinite;
+  animation-delay: -20s;
+}
+
+@keyframes blobMoveLight1 {
+  0% { transform: translate3d(-8vw, 0, 0) scale(1); }
+  25% { transform: translate3d(5vw, 10vh, 0) scale(1.05); }
+  50% { transform: translate3d(0, 5vh, 0) scale(0.95); }
+  75% { transform: translate3d(10vw, -8vh, 0) scale(1.08); }
+  100% { transform: translate3d(-8vw, 0, 0) scale(1); }
+}
+
+@keyframes blobMoveLight2 {
+  0% { transform: translate3d(15vw, 10vh, 0) scale(0.9); }
+  25% { transform: translate3d(-5vw, -5vh, 0) scale(1); }
+  50% { transform: translate3d(8vw, 8vh, 0) scale(1.1); }
+  75% { transform: translate3d(0, 0, 0) scale(0.95); }
+  100% { transform: translate3d(15vw, 10vh, 0) scale(0.9); }
+}
+
+@keyframes blobMoveLight3 {
+  0% { transform: translate3d(0, -10vh, 0) scale(1.05); }
+  25% { transform: translate3d(-10vw, 5vh, 0) scale(0.9); }
+  50% { transform: translate3d(5vw, -8vh, 0) scale(1); }
+  75% { transform: translate3d(-5vw, 10vh, 0) scale(1.1); }
+  100% { transform: translate3d(0, -10vh, 0) scale(1.05); }
+}
+
+@keyframes blobMoveLight4 {
+  0% { transform: translate3d(0, 0, 0) scale(1); }
+  33% { transform: translate3d(-8vw, 10vh, 0) scale(1.08); }
+  66% { transform: translate3d(10vw, -5vh, 0) scale(0.92); }
+  100% { transform: translate3d(0, 0, 0) scale(1); }
+}
+
+/* CONTENT WRAPPER */
+.content-wrapper {
+  position: relative;
+  z-index: 1;
+  min-height: 100vh;
+}
+
+/* MOTION PREFERENCES */
+@media (prefers-reduced-motion: reduce) {
+  html[data-theme="dark"] .blob,
+  html[data-theme="light"] .blob {
+    animation: none;
+  }
+}
+
+/* MOBILE OPTIMIZATION */
+@media (max-width: 768px) {
+  html[data-theme="dark"] .blob-1,
+  html[data-theme="light"] .blob-1 {
+    width: 60vw;
+    height: 60vw;
+  }
+
+  html[data-theme="dark"] .blob-2,
+  html[data-theme="light"] .blob-2 {
+    width: 50vw;
+    height: 50vw;
+  }
+
+  html[data-theme="dark"] .blob-3,
+  html[data-theme="light"] .blob-3 {
+    width: 45vw;
+    height: 45vw;
+  }
+
+  html[data-theme="dark"] .blob-4,
+  html[data-theme="light"] .blob-4 {
+    width: 40vw;
+    height: 40vw;
+  }
+
+  html[data-theme="dark"] .blob {
+    filter: blur(50px);
+  }
+
+  html[data-theme="light"] .blob {
+    filter: blur(70px);
+  }
+}

@@ -6,16 +6,10 @@ export function renderFoodSearch(state, searchResults, userFoods) {
   return `
     <section class="section card">
       <h1>Aggiungi alimento</h1>
-      <label>Ricerca<input id="searchQuery" type="search" placeholder="Cerca cibo"></label>
-      <button id="searchButton" class="secondary">Cerca</button>
-      <button id="customFood" class="primary">Cibo personalizzato</button>
-      <button id="estimatedFood" class="primary">Stima senza dati precisi</button>
-    </section>
-    <section class="section card">
-      <h2>Risultati ricerca</h2>
-      <ul class="list-group">
-        ${searchResults.length ? searchResults.map(item => renderFoodResult(item)).join('') : '<li>Nessun risultato. Prova con un altro nome.</li>'}
-      </ul>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+        <button id="customFood" class="primary">⭐ Cibo personalizzato</button>
+        <button id="estimatedFood" class="primary">🔍 Stima senza dati precisi</button>
+      </div>
     </section>
     <section class="section card">
       <h2>Alimenti personali</h2>
@@ -38,16 +32,8 @@ function renderFoodResult(item, isUser = false) {
 }
 
 export function bindFoodSearchEvents(container, callbacks) {
-  const searchButton = container.querySelector('#searchButton');
   const customButton = container.querySelector('#customFood');
   const estimatedButton = container.querySelector('#estimatedFood');
-
-  if (searchButton) {
-    searchButton.addEventListener('click', () => {
-      const query = container.querySelector('#searchQuery').value.trim();
-      callbacks.onSearch(query);
-    });
-  }
 
   if (customButton) {
     customButton.addEventListener('click', () => callbacks.onCustomFood());
