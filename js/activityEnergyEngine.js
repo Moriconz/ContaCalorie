@@ -317,6 +317,93 @@ export function applyEatBackCalories(totalActivityKcal, prefs = {}) {
   }
 }
 
+// === ANTI-DOPPIO-CONTEGGIO: CARDIO "A PIEDI" vs PASSI (approccio B) ===
+
+// Tipi di cardio che generano passi conteggiati anche dal contapassi.
+// Gli altri (bici, nuoto, vogatore, ellittica) NON sovrappongono i passi.
+export const FOOT_BASED_CARDIO = ['walking', 'running', 'hiking', 'treadmill', 'camminata', 'corsa_outdoor'];
+
+// Cadenza media (passi/min) per stimare i passi quando manca la distanza.
+const CADENCE_SPM = { walking: 110, camminata: 110, hiking: 105, running: 160, corsa_outdoor: 160, treadmill: 130 };
+// Passi per km quando la distanza è disponibile (falcata più lunga in corsa).
+const STEPS_PER_KM = { walking: 1400, camminata: 1400, hiking: 1450, running: 1100, corsa_outdoor: 1100, treadmill: 1250 };
+
+function isFootBased(session) {
+  return FOOT_BASED_CARDIO.includes(session.cardioType ?? session.tipo);
+}
+
+/**
+ * Stima quanti passi ha generato una sessione di cardio "a piedi".
+ * Usa la distanza se presente, altrimenti durata × cadenza. 0 per cardio non a piedi.
+ */
+export function estimateCardioSteps(session) {
+  if (!session || !isFootBased(session)) return 0;
+  const type = session.cardioType ?? session.tipo;
+  const duration = getDuration(session);
+  const dist = session.distanceKm;
+  if (dist && dist > 0) return Math.round(dist * (STEPS_PER_KM[type] || 1300));
+  if (duration > 0) return Math.round(duration * (CADENCE_SPM[type] || 120));
+  return 0;
+}
+
+/**
+ * Approccio B: sottrae dal record passi del giorno la quota attribuibile al cardio a piedi
+ * (passi, distanza e minuti attivi), così quei passi non vengono conteggiati due volte.
+ * I cardio non-a-piedi non toccano i passi.
+ * @returns {Object|null} record passi "nettato" (o l'originale se nessun cardio a piedi)
+ */
+export function netStepsRecordForCardio(stepsRecord, cardioSessions = []) {
+  if (!stepsRecord) return stepsRecord;
+  const footCardio = cardioSessions.filter(isFootBased);
+  if (footCardio.length === 0) return stepsRecord;
+
+  const cardioSteps = footCardio.reduce((s, c) => s + estimateCardioSteps(c), 0);
+  const cardioKm = footCardio.reduce((s, c) => s + (c.distanceKm || 0), 0);
+  const cardioMin = footCardio.reduce((s, c) => s + getDuration(c), 0);
+
+  return {
+    ...stepsRecord,
+    steps: Math.max(0, (stepsRecord.steps || 0) - cardioSteps),
+    distanceKm: stepsRecord.distanceKm != null ? Math.max(0, stepsRecord.distanceKm - cardioKm) : stepsRecord.distanceKm,
+    activeMinutes: stepsRecord.activeMinutes != null ? Math.max(0, stepsRecord.activeMinutes - cardioMin) : stepsRecord.activeMinutes,
+    _nettedForCardio: true
+  };
+}
+
+// === HELPER GIORNALIERO CENTRALIZZATO (usato da dashboard/fisica/settimana) ===
+
+/**
+ * Calcola le calorie attività di un singolo giorno dai gruppi di sessioni già filtrate.
+ * Centralizza la logica prima duplicata in 4 viste.
+ * Applica l'anti-doppio-conteggio (approccio B): i passi generati dal cardio a piedi
+ * vengono sottratti dai passi del giorno prima di stimarne le calorie.
+ * Disattivabile con prefs.avoidDoubleCountingWalking === false.
+ * @param {Array} dayStrength - sessioni pesi del giorno (strengthSessions)
+ * @param {Array} dayCardio - sessioni cardio del giorno
+ * @param {Object|null} daySteps - record passi del giorno
+ * @param {Object} userProfile - { pesoKg }
+ * @param {Object} prefs - activity preferences
+ * @returns {{strengthKcal:number, cardioKcal:number, stepsKcal:number, stepsExcluded:boolean, activityKcal:number}}
+ */
+export function computeDayActivityKcal(dayStrength = [], dayCardio = [], daySteps = null, userProfile = {}, prefs = {}) {
+  const strengthKcal = dayStrength.reduce((sum, s) => sum + (s.estimatedKcal || estimateWeightsCalories(s, userProfile)), 0);
+  const cardioKcal = dayCardio.reduce((sum, c) => sum + (c.estimatedKcal || estimateCardioCalories(c, userProfile)), 0);
+
+  // Approccio B: netta i passi attribuibili al cardio a piedi (default attivo)
+  const applyNetting = prefs.avoidDoubleCountingWalking !== false;
+  const stepsForCalc = (applyNetting && daySteps) ? netStepsRecordForCardio(daySteps, dayCardio) : daySteps;
+  const stepsKcal = stepsForCalc ? estimateStepsCalories(stepsForCalc, userProfile, prefs) : 0;
+  const stepsExcluded = !!daySteps && (daySteps.steps || 0) > 0 && (!stepsForCalc || (stepsForCalc.steps || 0) === 0);
+
+  return {
+    strengthKcal,
+    cardioKcal,
+    stepsKcal,
+    stepsExcluded,
+    activityKcal: strengthKcal + cardioKcal + stepsKcal
+  };
+}
+
 // === AGGREGAZIONE GIORNALIERA ===
 
 /**

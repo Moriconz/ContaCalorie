@@ -1,179 +1,135 @@
 /**
- * ANIMATED BACKGROUNDS
- * Sfondi dinamici con blob neon (dark) e pastello (light)
+ * BACKGROUND — Aurora soft (Liquid Glass)
+ *
+ * Via i blob "lava lamp" (blur 8px, opacità piena, neon).
+ * Ora: campi di colore ENORMI, ultra-sfocati e desaturati che derivano
+ * lentissimi dietro il vetro — il blur dei pannelli fa il resto.
+ * È lo sfondo a dare profondità al glassmorphism, non a rubare la scena.
  */
 
-/* DARK MODE BACKGROUND */
 .bg-container {
   position: fixed;
   inset: 0;
   overflow: hidden;
   z-index: 0;
-  background: linear-gradient(135deg, #050716 0%, #0a1023 100%);
+  background:
+    radial-gradient(120% 90% at 50% 0%, #0d1024 0%, #07080f 55%, #05060c 100%);
   transform: translateZ(0);
   backface-visibility: hidden;
+}
+
+/* Vignettatura leggera in basso: i contenuti "emergono" dal buio */
+.bg-container::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(90% 70% at 50% 110%, rgba(0, 0, 0, 0.35), transparent 60%);
+  pointer-events: none;
 }
 
 .blob {
   position: absolute;
   border-radius: 50%;
-  filter: blur(8px);
-  opacity: 1.0;
+  filter: blur(90px);
   will-change: transform;
   transform: translateZ(0);
   backface-visibility: hidden;
   mix-blend-mode: screen;
 }
 
+/* Indigo — campo principale, alto */
 .blob-1 {
-  width: 35vw;
-  height: 35vw;
-  background: radial-gradient(circle at 30% 30%, #ff6ec7, transparent 65%);
-  top: -10vh;
-  left: -10vw;
-  animation: blobMove1 45s ease-in-out infinite;
+  width: 85vw;
+  height: 85vw;
+  background: radial-gradient(circle at 40% 40%, rgba(74, 92, 230, 0.40), transparent 65%);
+  top: -30vh;
+  left: -20vw;
+  animation: aurora1 110s ease-in-out infinite;
 }
 
+/* Violetto — destra */
 .blob-2 {
-  width: 40vw;
-  height: 40vw;
-  background: radial-gradient(circle at 70% 70%, #ff9a44, transparent 60%);
-  top: 15vh;
-  right: -15vw;
-  animation: blobMove2 50s ease-in-out infinite;
-  animation-delay: -5s;
+  width: 75vw;
+  height: 75vw;
+  background: radial-gradient(circle at 60% 50%, rgba(124, 76, 217, 0.32), transparent 62%);
+  top: 5vh;
+  right: -30vw;
+  animation: aurora2 130s ease-in-out infinite;
+  animation-delay: -30s;
 }
 
+/* Teal profondo — basso, quasi impercettibile */
 .blob-3 {
-  width: 30vw;
-  height: 30vw;
-  background: radial-gradient(circle at 40% 40%, #4cc9f0, transparent 70%);
-  bottom: -5vh;
-  left: 10vw;
-  animation: blobMove3 55s ease-in-out infinite;
-  animation-delay: -10s;
+  width: 70vw;
+  height: 70vw;
+  background: radial-gradient(circle at 50% 50%, rgba(36, 130, 160, 0.22), transparent 65%);
+  bottom: -25vh;
+  left: 0vw;
+  animation: aurora3 150s ease-in-out infinite;
+  animation-delay: -60s;
 }
 
+/* Bagliore caldo minimo, centro-alto: dà "vita" al vetro */
 .blob-4 {
-  width: 25vw;
-  height: 25vw;
-  background: radial-gradient(circle at 50% 50%, #a855f7, transparent 65%);
-  top: 30vh;
-  left: 35vw;
-  animation: blobMove4 60s ease-in-out infinite;
-  animation-delay: -15s;
-}
-
-@keyframes blobMove1 {
-  0% { transform: translate3d(-5vw, 0, 0) scale(1); }
-  25% { transform: translate3d(8vw, 10vh, 0) scale(1.1); }
-  50% { transform: translate3d(-2vw, 5vh, 0) scale(0.95); }
-  75% { transform: translate3d(5vw, -5vh, 0) scale(1.05); }
-  100% { transform: translate3d(-5vw, 0, 0) scale(1); }
-}
-
-@keyframes blobMove2 {
-  0% { transform: translate3d(10vw, 5vh, 0) scale(1.1); }
-  25% { transform: translate3d(-5vw, -8vh, 0) scale(0.95); }
-  50% { transform: translate3d(3vw, -3vh, 0) scale(1); }
-  75% { transform: translate3d(8vw, 8vh, 0) scale(1.15); }
-  100% { transform: translate3d(10vw, 5vh, 0) scale(1.1); }
-}
-
-@keyframes blobMove3 {
-  0% { transform: translate3d(0, 8vh, 0) scale(0.9); }
-  25% { transform: translate3d(-8vw, 0, 0) scale(1.05); }
-  50% { transform: translate3d(5vw, -10vh, 0) scale(1); }
-  75% { transform: translate3d(-3vw, 5vh, 0) scale(0.95); }
-  100% { transform: translate3d(0, 8vh, 0) scale(0.9); }
-}
-
-@keyframes blobMove4 {
-  0% { transform: translate3d(0, 0, 0) scale(1); }
-  33% { transform: translate3d(5vw, 8vh, 0) scale(1.1); }
-  66% { transform: translate3d(-8vw, -5vh, 0) scale(0.85); }
-  100% { transform: translate3d(0, 0, 0) scale(1); }
-}
-
-/* LIGHT MODE BACKGROUND OVERRIDES */
-html[data-theme="light"] .bg-container {
-  background: linear-gradient(135deg, #f0f4ff 0%, #dfe9ff 50%, #efe6ff 100%);
-}
-
-html[data-theme="light"] .blob {
-  filter: blur(8px);
-  opacity: 1;
-  mix-blend-mode: multiply;
-}
-
-html[data-theme="light"] .blob-1 {
-  background: radial-gradient(circle at 30% 30%, rgba(100, 200, 255, 0.6), transparent 70%);
-  width: 45vw;
-  height: 45vw;
-  top: -20vh;
-  right: -10vw;
-  animation: blobMoveLight1 50s ease-in-out infinite;
-}
-
-html[data-theme="light"] .blob-2 {
-  background: radial-gradient(circle at 70% 70%, rgba(200, 150, 255, 0.5), transparent 65%);
   width: 40vw;
   height: 40vw;
-  top: 10vh;
-  left: -15vw;
-  animation: blobMoveLight2 55s ease-in-out infinite;
-  animation-delay: -8s;
-}
-
-html[data-theme="light"] .blob-3 {
-  background: radial-gradient(circle at 40% 40%, rgba(255, 170, 200, 0.55), transparent 70%);
-  width: 35vw;
-  height: 35vw;
-  bottom: -15vh;
-  right: 5vw;
-  animation: blobMoveLight3 60s ease-in-out infinite;
-  animation-delay: -12s;
-}
-
-html[data-theme="light"] .blob-4 {
-  background: radial-gradient(circle at 50% 50%, rgba(150, 220, 255, 0.45), transparent 70%);
-  width: 30vw;
-  height: 30vw;
-  top: 40vh;
-  left: 25vw;
-  animation: blobMoveLight4 65s ease-in-out infinite;
+  background: radial-gradient(circle at 50% 50%, rgba(190, 120, 255, 0.14), transparent 60%);
+  top: 22vh;
+  left: 28vw;
+  animation: aurora4 90s ease-in-out infinite;
   animation-delay: -20s;
 }
 
-@keyframes blobMoveLight1 {
-  0% { transform: translate3d(-8vw, 0, 0) scale(1); }
-  25% { transform: translate3d(5vw, 10vh, 0) scale(1.05); }
-  50% { transform: translate3d(0, 5vh, 0) scale(0.95); }
-  75% { transform: translate3d(10vw, -8vh, 0) scale(1.08); }
-  100% { transform: translate3d(-8vw, 0, 0) scale(1); }
+/* Deriva minima: l'aurora respira, non balla */
+@keyframes aurora1 {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  50% { transform: translate3d(6vw, 5vh, 0) scale(1.08); }
 }
 
-@keyframes blobMoveLight2 {
-  0% { transform: translate3d(15vw, 10vh, 0) scale(0.9); }
-  25% { transform: translate3d(-5vw, -5vh, 0) scale(1); }
-  50% { transform: translate3d(8vw, 8vh, 0) scale(1.1); }
-  75% { transform: translate3d(0, 0, 0) scale(0.95); }
-  100% { transform: translate3d(15vw, 10vh, 0) scale(0.9); }
+@keyframes aurora2 {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1.05); }
+  50% { transform: translate3d(-7vw, 6vh, 0) scale(0.95); }
 }
 
-@keyframes blobMoveLight3 {
-  0% { transform: translate3d(0, -10vh, 0) scale(1.05); }
-  25% { transform: translate3d(-10vw, 5vh, 0) scale(0.9); }
-  50% { transform: translate3d(5vw, -8vh, 0) scale(1); }
-  75% { transform: translate3d(-5vw, 10vh, 0) scale(1.1); }
-  100% { transform: translate3d(0, -10vh, 0) scale(1.05); }
+@keyframes aurora3 {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(0.98); }
+  50% { transform: translate3d(5vw, -6vh, 0) scale(1.06); }
 }
 
-@keyframes blobMoveLight4 {
-  0% { transform: translate3d(0, 0, 0) scale(1); }
-  33% { transform: translate3d(-8vw, 10vh, 0) scale(1.08); }
-  66% { transform: translate3d(10vw, -5vh, 0) scale(0.92); }
-  100% { transform: translate3d(0, 0, 0) scale(1); }
+@keyframes aurora4 {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); opacity: 0.8; }
+  50% { transform: translate3d(-4vw, 4vh, 0) scale(1.12); opacity: 1; }
+}
+
+/* ───────────────────────── LIGHT ───────────────────────── */
+html[data-theme="light"] .bg-container {
+  background:
+    radial-gradient(120% 90% at 50% 0%, #f6f7fd 0%, #eef0f9 55%, #e9ecf7 100%);
+}
+
+html[data-theme="light"] .bg-container::after {
+  background: radial-gradient(90% 70% at 50% 115%, rgba(120, 130, 200, 0.10), transparent 60%);
+}
+
+html[data-theme="light"] .blob {
+  filter: blur(100px);
+  mix-blend-mode: normal;
+}
+
+html[data-theme="light"] .blob-1 {
+  background: radial-gradient(circle at 40% 40%, rgba(154, 170, 255, 0.55), transparent 65%);
+}
+
+html[data-theme="light"] .blob-2 {
+  background: radial-gradient(circle at 60% 50%, rgba(201, 172, 255, 0.45), transparent 62%);
+}
+
+html[data-theme="light"] .blob-3 {
+  background: radial-gradient(circle at 50% 50%, rgba(168, 216, 255, 0.45), transparent 65%);
+}
+
+html[data-theme="light"] .blob-4 {
+  background: radial-gradient(circle at 50% 50%, rgba(255, 196, 221, 0.30), transparent 60%);
 }
 
 /* CONTENT WRAPPER */
@@ -185,43 +141,18 @@ html[data-theme="light"] .blob-4 {
 
 /* MOTION PREFERENCES */
 @media (prefers-reduced-motion: reduce) {
-  html[data-theme="dark"] .blob,
-  html[data-theme="light"] .blob {
-    animation: none;
+  .blob {
+    animation: none !important;
   }
 }
 
-/* MOBILE OPTIMIZATION */
+/* MOBILE: campi più piccoli e blur ridotto (GPU) */
 @media (max-width: 768px) {
-  html[data-theme="dark"] .blob-1,
-  html[data-theme="light"] .blob-1 {
-    width: 60vw;
-    height: 60vw;
-  }
+  .blob { filter: blur(60px); }
+  html[data-theme="light"] .blob { filter: blur(70px); }
 
-  html[data-theme="dark"] .blob-2,
-  html[data-theme="light"] .blob-2 {
-    width: 50vw;
-    height: 50vw;
-  }
-
-  html[data-theme="dark"] .blob-3,
-  html[data-theme="light"] .blob-3 {
-    width: 45vw;
-    height: 45vw;
-  }
-
-  html[data-theme="dark"] .blob-4,
-  html[data-theme="light"] .blob-4 {
-    width: 40vw;
-    height: 40vw;
-  }
-
-  html[data-theme="dark"] .blob {
-    filter: blur(6px);
-  }
-
-  html[data-theme="light"] .blob {
-    filter: blur(8px);
-  }
+  .blob-1 { width: 130vw; height: 130vw; top: -40vh; left: -40vw; }
+  .blob-2 { width: 110vw; height: 110vw; right: -50vw; }
+  .blob-3 { width: 100vw; height: 100vw; bottom: -35vh; }
+  .blob-4 { width: 70vw; height: 70vw; }
 }

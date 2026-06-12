@@ -13,8 +13,8 @@
  * - Service worker viene registrato in background
  */
 
-import { initDb, logDbStats } from '../db/indexedDbClient.js';
-import { ensurePersistentStorage, logStorageInfo } from '../storage/persistence.js';
+import { initStorage, getDbStats } from './storage.js';
+import { ensurePersistentStorage, logStorageInfo } from './storage/persistence.js';
 
 /**
  * Stato bootstrap globale
@@ -33,9 +33,9 @@ const bootstrapState = {
 async function initializeDatabase() {
   try {
     console.log('🗄️ Inizializzazione IndexedDB...');
-    await initDb();
+    await initStorage();
     bootstrapState.dbReady = true;
-    await logDbStats();
+    console.log('📊 IndexedDB:', await getDbStats());
     console.log('✅ Database pronto');
     return true;
   } catch (error) {
@@ -164,6 +164,39 @@ function notifyNewVersionAvailable() {
 }
 
 /**
+ * Banner persistente: IndexedDB non disponibile, dati in modalità limitata.
+ * Mostrato quando l'app gira sul fallback localStorage (es. modalità privata):
+ * i dati possono andare persi alla chiusura del browser.
+ */
+function showStorageWarningBanner() {
+  const banner = document.createElement('div');
+  banner.id = 'storage-warning-banner';
+  banner.style.cssText = `
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    background: #b45309;
+    color: white;
+    padding: 12px 16px;
+    text-align: center;
+    z-index: 9999;
+    font-size: 14px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  `;
+  banner.textContent = '⚠️ Salvataggio limitato: il browser non consente lo storage permanente (modalità privata?). I dati potrebbero andare persi alla chiusura.';
+
+  const closeBtn = document.createElement('button');
+  closeBtn.textContent = '✕';
+  closeBtn.setAttribute('aria-label', 'Chiudi avviso');
+  closeBtn.style.cssText = 'background:none;border:none;color:white;font-size:16px;margin-left:12px;cursor:pointer;';
+  closeBtn.addEventListener('click', () => banner.remove());
+  banner.appendChild(closeBtn);
+
+  document.body.insertBefore(banner, document.body.firstChild);
+}
+
+/**
  * Mostra errore di bootstrap
  */
 function showBootstrapError(error) {
@@ -220,8 +253,14 @@ export async function bootstrapApp() {
   const dbOk = await initializeDatabase();
 
   if (!dbOk) {
-    showBootstrapError(bootstrapState.error);
-    return false;
+    // storage.js ha un fallback localStorage: l'app può continuare, ma
+    // l'utente DEVE sapere che i dati sono salvati in modalità limitata
+    // (prima il fallimento era silenzioso o bloccava tutto).
+    if (typeof localStorage === 'undefined') {
+      showBootstrapError(bootstrapState.error);
+      return false;
+    }
+    showStorageWarningBanner();
   }
 
   // 2. Background: Richiedi storage persistente

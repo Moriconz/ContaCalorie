@@ -1,11 +1,9 @@
 /**
- * Data Pack Loader — Gestione data pack alimenti con ricerca fuzzy
- * Priorità: fast food → alimenti italiani completi (CREA/BDA 516 voci) → piatti esteri
+ * Data Pack Loader — Ricerca alimenti nel database ufficiale CREA
+ * Fonte unica: alimenti CREA (italian_foods_full.json)
  */
 
 let _italianFoodsFull = null;
-let _foreignDishes = null;
-let _fastFood = null;
 
 async function loadItalianFoodsFull() {
   if (_italianFoodsFull) return _italianFoodsFull;
@@ -14,46 +12,10 @@ async function loadItalianFoodsFull() {
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const data = await response.json();
     _italianFoodsFull = data.foods || [];
-    console.log(`📦 Caricati ${_italianFoodsFull.length} alimenti italiani (CREA/BDA completo)`);
+    console.log(`📦 Caricati ${_italianFoodsFull.length} alimenti CREA`);
     return _italianFoodsFull;
   } catch (error) {
     console.warn('⚠️ Errore caricamento italian_foods_full.json:', error);
-    return [];
-  }
-}
-
-async function loadForeignDishes() {
-  if (_foreignDishes) return _foreignDishes;
-  try {
-    const response = await fetch('/data/foreign_common_in_italy.json');
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    const data = await response.json();
-    _foreignDishes = data.dishes || [];
-    console.log(`📦 Caricati ${_foreignDishes.length} piatti esteri`);
-    return _foreignDishes;
-  } catch (error) {
-    console.warn('⚠️ Errore caricamento foreign_common_in_italy.json:', error);
-    return [];
-  }
-}
-
-async function loadFastFood() {
-  if (_fastFood) return _fastFood;
-  try {
-    const response = await fetch('/data/fast_food_chains_it.json');
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    const data = await response.json();
-    _fastFood = [];
-    for (const chain in data.chains || {}) {
-      const items = data.chains[chain];
-      if (Array.isArray(items)) {
-        _fastFood.push(...items.map(item => ({ ...item, chain })));
-      }
-    }
-    console.log(`📦 Caricati ${_fastFood.length} item fast food`);
-    return _fastFood;
-  } catch (error) {
-    console.warn('⚠️ Errore caricamento fast_food_chains_it.json:', error);
     return [];
   }
 }
@@ -90,11 +52,31 @@ function levenshtein(a, b) {
   return matrix[b.length][a.length];
 }
 
-export function fuzzyMatch(query, candidate) {
+export function strictMatch(query, candidate) {
   const q = normalizeName(query);
   const c = normalizeName(candidate);
   if (!q || !c) return false;
-  if (c === q || c.includes(q) || q.includes(c)) return true;
+
+  // Esatto match
+  if (c === q) return true;
+
+  // Tutti i "token" della query devono essere presenti in candidate
+  const queryTokens = q.split(/\s+/).filter(t => t.length > 1);
+  if (queryTokens.length === 0) return false;
+
+  // Richiedi che TUTTI i token siano presenti
+  return queryTokens.every(token => c.includes(token));
+}
+
+export function fuzzyMatch(query, candidate) {
+  // Prova prima con match rigoroso
+  if (strictMatch(query, candidate)) return true;
+
+  // Solo se non c'è match esatto, usa fuzzy (più tollerante)
+  const q = normalizeName(query);
+  const c = normalizeName(candidate);
+  if (!q || !c) return false;
+  if (c.includes(q) || q.includes(c)) return true;
 
   const maxLen = Math.max(q.length, c.length);
   const threshold = Math.ceil(maxLen * 0.3);
@@ -102,34 +84,12 @@ export function fuzzyMatch(query, candidate) {
 }
 
 export async function searchInDataPacks(foodName, grams) {
-  console.log(`🔍 Ricerca data pack: "${foodName}" (${grams}g)`);
+  console.log(`🔍 Ricerca CREA: "${foodName}" (${grams}g)`);
 
-  // 1. Fast food (priorità alta)
-  const fastFood = await loadFastFood();
-  for (const item of fastFood) {
-    if (fuzzyMatch(foodName, item.name)) {
-      console.log(`✅ Trovato FAST FOOD: ${item.chain} - ${item.name}`);
-      return {
-        found: true,
-        item,
-        dataPackType: 'fast_food',
-        kcal: Math.round((item.kcal / (item.portionSize || 100)) * grams),
-        protein: Math.round((item.protein / (item.portionSize || 100)) * grams * 10) / 10,
-        carb: Math.round((item.carb / (item.portionSize || 100)) * grams * 10) / 10,
-        fat: Math.round((item.fat / (item.portionSize || 100)) * grams * 10) / 10,
-        fiber: item.fiber ? Math.round((item.fiber / (item.portionSize || 100)) * grams * 10) / 10 : 0,
-        sugar: item.sugar ? Math.round((item.sugar / (item.portionSize || 100)) * grams * 10) / 10 : 0,
-        source: item.chain,
-        chain: item.chain
-      };
-    }
-  }
-
-  // 2. Alimenti italiani completi (CREA/BDA)
   const italianFoods = await loadItalianFoodsFull();
   for (const food of italianFoods) {
     if (fuzzyMatch(foodName, food.name_it)) {
-      console.log(`✅ Trovato ITALIANO (CREA/BDA): ${food.name_it}`);
+      console.log(`✅ Trovato CREA: ${food.name_it}`);
       return {
         found: true,
         item: food,
@@ -141,34 +101,11 @@ export async function searchInDataPacks(foodName, grams) {
         fiber: food.fiber_100g ? Math.round(food.fiber_100g * grams / 100 * 10) / 10 : null,
         sugar: food.sugars_100g ? Math.round(food.sugars_100g * grams / 100 * 10) / 10 : null,
         source: 'CREA',
-        category: food.category,
-        subtype: food.subtype,
-        state: food.state
+        category: food.category
       };
     }
   }
 
-  // 3. Piatti esteri (fallback)
-  const foreignDishes = await loadForeignDishes();
-  for (const dish of foreignDishes) {
-    if (fuzzyMatch(foodName, dish.name)) {
-      console.log(`✅ Trovato ESTERO: ${dish.name} (${dish.cuisine})`);
-      return {
-        found: true,
-        item: dish,
-        dataPackType: 'foreign',
-        kcal: dish.kcal_100g ? Math.round(dish.kcal_100g * grams / 100) : null,
-        protein: dish.protein_100g ? Math.round(dish.protein_100g * grams / 100 * 10) / 10 : null,
-        carb: dish.carb_100g ? Math.round(dish.carb_100g * grams / 100 * 10) / 10 : null,
-        fat: dish.fat_100g ? Math.round(dish.fat_100g * grams / 100 * 10) / 10 : null,
-        fiber: dish.fiber_100g ? Math.round(dish.fiber_100g * grams / 100 * 10) / 10 : null,
-        sugar: dish.sugar_100g ? Math.round(dish.sugar_100g * grams / 100 * 10) / 10 : null,
-        source: 'EuroFIR/USDA',
-        cuisine: dish.cuisine
-      };
-    }
-  }
-
-  console.log(`❌ Non trovato nei data pack`);
+  console.log(`❌ Non trovato nel database CREA`);
   return { found: false };
 }

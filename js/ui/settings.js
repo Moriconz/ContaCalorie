@@ -9,7 +9,9 @@
  */
 
 import * as backup from '../sync/backupService.js';
-import * as db from '../../db/indexedDbClient.js';
+import { loadUserProfile, getDbStats } from '../storage.js';
+import { escapeHtml } from '../utils.js';
+import { showConfirm } from './modal.js';
 
 export function renderSettings() {
   return `
@@ -65,10 +67,10 @@ export function renderSettings() {
         <div style="margin-bottom: 1.5rem;">
           <label style="display: flex; align-items: center; gap: 1rem; cursor: pointer;">
             <input id="avoidDoubleCountingWalking" type="checkbox" class="activity-pref" style="cursor: pointer;">
-            <span><strong>Evita doppio conteggio passi+walking</strong></span>
+            <span><strong>Evita doppio conteggio cardio "a piedi" + passi</strong></span>
           </label>
           <div class="small-muted" style="margin-left: 2rem; margin-top: 0.5rem; font-size: 0.8rem;">
-            Se attivato, non conta sia i passi sincronizzati che la cardio "walking" nello stesso giorno
+            Se attivato, dai passi del giorno vengono sottratti quelli generati dal cardio a piedi (corsa, camminata, treadmill, hiking), così non vengono contati due volte. I cardio non a piedi (bici, nuoto…) non toccano i passi.
           </div>
         </div>
 
@@ -188,7 +190,7 @@ export function renderSettings() {
             📦 <strong>App Version:</strong> 0.1.0 (Beta)
           </p>
           <p style="margin: 0.5rem 0;">
-            🗄️ <strong>Database:</strong> IndexedDB v3 (conta-calorie-db)
+            🗄️ <strong>Database:</strong> IndexedDB (ContaCalorieDB v6)
           </p>
           <p style="margin: 0.5rem 0;">
             🌐 <strong>Type:</strong> Progressive Web App (Local-First)
@@ -266,8 +268,8 @@ export function bindSettingsEvents(container, callbacks) {
     const output = container.querySelector('#debugOutput');
     output.style.display = 'block';
     output.textContent = 'Caricando...\n';
-    await db.logDbStats();
-    const stats = await db.getDbStats();
+    const stats = await getDbStats();
+    console.log('📊 IndexedDB (ContaCalorieDB):', stats);
     output.textContent = JSON.stringify(stats, null, 2);
   });
 
@@ -321,13 +323,13 @@ export function bindSettingsEvents(container, callbacks) {
  */
 async function updateProfileInfo(container) {
   try {
-    const profile = await db.getUserProfile();
+    const profile = await loadUserProfile();
     const infoDiv = container.querySelector('#profileInfo');
 
     if (profile && profile.nome) {
       infoDiv.innerHTML = `
-        <p style="margin: 0.5rem 0;">👤 <strong>${profile.nome}</strong></p>
-        <p style="margin: 0.5rem 0;">📏 ${profile.altezza || '--'} cm</p>
+        <p style="margin: 0.5rem 0;">👤 <strong>${escapeHtml(profile.nome)}</strong></p>
+        <p style="margin: 0.5rem 0;">📏 ${profile.altezzaCm || '--'} cm</p>
         <p style="margin: 0.5rem 0;">⚖️ ${profile.pesoKg || '--'} kg</p>
         <p style="margin: 0.5rem 0;">🎯 Sesso: ${profile.sesso || '--'}</p>
       `;
@@ -436,8 +438,8 @@ async function handleImport(container, file) {
     );
 
     // Offrì di ricaricare dopo 3 secondi
-    setTimeout(() => {
-      const reloadConfirmed = confirm('Ricaricare la pagina ora?');
+    setTimeout(async () => {
+      const reloadConfirmed = await showConfirm('Ricaricare la pagina ora per vedere i dati importati?', { confirmLabel: 'Ricarica' });
       if (reloadConfirmed) {
         location.reload();
       }

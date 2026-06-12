@@ -13,10 +13,14 @@
   <link rel="manifest" href="/manifest.webmanifest" />
   
   <!-- Theme & Glassmorphism CSS -->
-  <link rel="stylesheet" href="css/theme.css?t=1002" />
-  <link rel="stylesheet" href="css/glassmorphism.css?t=1002" />
-  <link rel="stylesheet" href="css/background.css?t=1002" />
-  <link rel="stylesheet" href="css/styles.css?t=1002" />
+  <link rel="stylesheet" href="css/theme.css" />
+  <link rel="stylesheet" href="css/glassmorphism.css" />
+  <link rel="stylesheet" href="css/background.css" />
+  <link rel="stylesheet" href="css/styles.css" />
+  <!-- Design system: componenti riutilizzabili -->
+  <link rel="stylesheet" href="css/components.css" />
+  <!-- Mobile-Optimized 2026 Best Practices -->
+  <link rel="stylesheet" href="css/mobile-optimized-2026.css" />
   
   <link rel="icon" href="icons/icon-192.svg" />
   <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
@@ -25,40 +29,33 @@
     // Carica tema dal localStorage PRIMA di rendere la pagina
     const savedTheme = localStorage.getItem('theme') || 'dark';
     document.documentElement.setAttribute('data-theme', savedTheme);
+
+    // In produzione silenzia i log di debug (warn/error restano attivi).
+    // Per riattivarli: aggiungi ?debug=1 all'URL.
+    (function () {
+      const isDev = ['localhost', '127.0.0.1'].includes(location.hostname);
+      const debugForced = new URLSearchParams(location.search).has('debug');
+      if (!isDev && !debugForced) {
+        const noop = () => {};
+        console.log = noop;
+        console.debug = noop;
+        console.info = noop;
+      }
+    })();
   </script>
   <script>
-    // REGISTRA IL SERVICE WORKER SUBITO - IL PIÙ PRESTO POSSIBILE
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/sw.js').then(reg => {
-        console.log('✅ Service Worker registered:', reg);
-        
-        // Ascolta aggiornamenti
-        reg.addEventListener('updatefound', () => {
-          const newWorker = reg.installing;
-          newWorker.addEventListener('statechange', () => {
-            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-              console.log('🔄 Nuova versione disponibile');
-              window.dispatchEvent(new CustomEvent('sw-update-available', { detail: { reg } }));
-            }
-          });
-        });
-      }).catch(e => {
-        console.error('SW registration failed:', e);
-      });
-    }
+    // NOTA: la registrazione del service worker avviene UNA SOLA VOLTA in
+    // js/appBootstrap.js (prima era duplicata anche qui → doppi listener update).
 
     // Cattura beforeinstallprompt IL PIÙ PRESTO POSSIBILE
     window.__beforeInstallPromptEvent = null;
     window.__beforeInstallPromptCaught = false;
 
     window.addEventListener('beforeinstallprompt', (e) => {
-      console.log('🎉 beforeinstallprompt CATTURATO!');
       e.preventDefault();
       window.__beforeInstallPromptEvent = e;
       window.__beforeInstallPromptCaught = true;
     }, true);
-
-    console.log('✅ SW + beforeinstallprompt listener registrati nel <head>');
   </script>
 </head>
 <body>
@@ -125,7 +122,12 @@
       if (themeToggle) {
         themeToggle.textContent = theme === 'dark' ? '🌙' : '☀️';
       }
+      // Sincronizza la status bar del telefono col tema scelto manualmente
+      // (i meta con media query seguono il tema di sistema, non quello dell'app)
+      const color = theme === 'dark' ? '#0f0f1e' : '#6366f1';
+      document.querySelectorAll('meta[name="theme-color"]').forEach(m => m.setAttribute('content', color));
     }
+    updateThemeIcon(themeManager.getTheme());
 
     // Listen for theme changes
     window.addEventListener('themechange', (e) => {

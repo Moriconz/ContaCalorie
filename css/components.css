@@ -1,0 +1,101 @@
+/*
+  Design system — componenti riutilizzabili.
+  Sostituiscono gli stili inline ripetuti (card, box statistica, griglie, barre, link).
+  Il colore d'accento si imposta con la variabile inline --c (es. style="--c:#3b82f6").
+*/
+
+/* Header di card: titolo + eventuale link */
+.card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+.card-head--tight { margin-bottom: 0.75rem; }
+.card-title { font-size: 1rem; margin: 0; font-weight: 700; }
+.card-link {
+  font-size: 0.85rem;
+  color: var(--primary);
+  text-decoration: none;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+/* Griglie compatte */
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+.grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.75rem; }
+.stack { display: flex; flex-direction: column; gap: 0.5rem; }
+
+/* Box statistica */
+.stat-box {
+  padding: 0.75rem;
+  background: var(--glass-secondary);
+  border-radius: 12px;
+  box-shadow: var(--glass-highlight);
+  text-align: center;
+}
+.stat-box--accent {
+  text-align: left;
+  border-left: 3px solid var(--c, var(--primary));
+  background: color-mix(in srgb, var(--c, var(--primary)) 12%, transparent);
+}
+.stat-label { font-size: 0.75rem; color: var(--muted); }
+.stat-value { font-size: 1.2rem; font-weight: 700; }
+.stat-value--lg { font-size: 1.3rem; }
+.stat-value--accent { color: var(--c, var(--primary)); }
+.stat-sub { font-size: 0.7rem; color: var(--muted); }
+
+/* Riga di lista (pasti, voci) */
+.list-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.55rem 0.8rem;
+  background: var(--glass-secondary);
+  border-radius: 10px;
+  box-shadow: var(--glass-highlight);
+}
+
+/* Barra di progresso sottile */
+.bar-track { height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; }
+.bar-fill { height: 100%; border-radius: 3px; background: var(--c, var(--primary)); transition: width 0.3s; }
+
+/* Banner informativo con accento */
+.note-banner {
+  padding: 0.75rem;
+  border-left: 3px solid var(--c, var(--primary));
+  background: color-mix(in srgb, var(--c, var(--primary)) 10%, transparent);
+  border-radius: 12px;
+  font-size: 0.9rem;
+}
+
+/* Pulsante microfono in ascolto */
+.voice-btn { transition: all 0.2s; }
+.voice-btn[data-listening] {
+  border-color: #ef4444;
+  background: color-mix(in srgb, #ef4444 15%, transparent);
+}
+
+
+/* Bottone "tinted" stile iOS: riempimento al 16-18% del colore, testo a piena tinta */
+.btn-tinted {
+  width: 100%;
+  background: color-mix(in srgb, var(--c, var(--primary)) 17%, transparent);
+  color: var(--c, var(--primary));
+  border: 1px solid color-mix(in srgb, var(--c, var(--primary)) 22%, transparent);
+  border-radius: 14px;
+  padding: 0.9rem 0.5rem;
+  min-height: 50px;
+  font-weight: 700;
+  font-size: 0.95rem;
+  letter-spacing: -0.01em;
+  backdrop-filter: blur(20px) var(--saturate-glass, saturate(170%));
+  -webkit-backdrop-filter: blur(20px) var(--saturate-glass, saturate(170%));
+  transition: transform var(--duration-fast, 150ms) var(--easing-smooth, ease),
+              filter var(--duration-fast, 150ms) var(--easing-smooth, ease);
+}
+
+.btn-tinted:active {
+  transform: scale(0.96);
+  filter: brightness(1.1);
+}

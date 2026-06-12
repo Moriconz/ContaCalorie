@@ -7,8 +7,7 @@ export const UserSex = ['M', 'F', 'altro', 'non specificato'];
 export const ActivityLevels = ['sedentario', 'leggero', 'moderato', 'intenso'];
 export const Goals = ['dimagrire', 'mantenere', 'massa'];
 export const MealMoments = ['colazione', 'spuntino', 'pranzo', 'merenda', 'cena', 'altro'];
-export const FoodSources = ['USDA_API', 'OPEN_FOOD_API', 'USER_CUSTOM', 'TYPICAL_ESTIMATE'];
-export const Origins = ['manual_search', 'manual_quick_add', 'photo_ai_guess', 'estimated_typical_value'];
+export const Origins = ['manual_search', 'manual_quick_add', 'recent_quick_add', 'estimate', 'recipe_saved', 'composed_from_ingredients', 'photo_ai_guess'];
 
 export const emptyUserProfile = {
   id: '',

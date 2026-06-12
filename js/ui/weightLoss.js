@@ -3,6 +3,8 @@
   Integrazione con activityEnergyEngine.js e weightLossEstimator.js
 */
 
+import { estimateTimeToGoal } from '../weightLossEstimator.js';
+
 export function renderWeightLoss(state) {
   const {
     userProfile,
@@ -168,7 +170,74 @@ export function renderWeightLoss(state) {
 
       <!-- BLOCCO 2b: PROIEZIONE AUTOMATICA -->
       ${renderAutoProjection(state.projections, state.userProfile)}
+
+      <!-- BLOCCO 3: OBIETTIVO PESO + ETA -->
+      ${renderGoalSection(state)}
     </section>
+  `;
+}
+
+/**
+ * BLOCCO 3 — Obiettivo peso con data stimata di arrivo (ETA).
+ * Usa estimateTimeToGoal (già nell'engine) con: peso attuale (ultima pesata o
+ * profilo), media intake/esercizio degli ultimi 7 giorni e TDEE adattivo se
+ * disponibile, altrimenti teorico.
+ */
+function renderGoalSection(state) {
+  const { userProfile, dailyWeights = [], last7DaysBalances = [], tdee, tdeeAdaptive } = state;
+
+  const latestWeight = dailyWeights.length
+    ? dailyWeights[dailyWeights.length - 1].pesoKg
+    : userProfile.pesoKg;
+  const goal = userProfile.pesoObiettivoKg;
+
+  let etaHtml = '';
+  if (goal && latestWeight) {
+    const days = last7DaysBalances.length || 1;
+    const avgIntake = last7DaysBalances.reduce((s, b) => s + (b.intakeKcal || 0), 0) / days;
+    const avgExercise = last7DaysBalances.reduce((s, b) => s + (b.exerciseData?.totalExerciseCalories || 0), 0) / days;
+    const usedTdee = tdeeAdaptive || tdee;
+    const eta = estimateTimeToGoal(latestWeight, goal, avgIntake, avgExercise, usedTdee);
+
+    if (eta.days === 0) {
+      etaHtml = `<div class="summary-box" style="margin-top: 1rem;"><div class="summary-label">🎉 Obiettivo raggiunto</div><div class="small-muted">Peso attuale ${latestWeight} kg ≤ obiettivo ${goal} kg</div></div>`;
+    } else if (!isFinite(eta.days)) {
+      etaHtml = `<div class="summary-box" style="margin-top: 1rem; border-left-color: var(--danger);"><div class="summary-label">Con il ritmo attuale non raggiungerai l'obiettivo</div><div class="small-muted">Intake medio ≥ spesa: serve un deficit. ${eta.warning || ''}</div></div>`;
+    } else {
+      const etaDate = new Date();
+      etaDate.setDate(etaDate.getDate() + eta.days);
+      const etaLabel = etaDate.toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' });
+      etaHtml = `
+        <div class="grid-2" style="margin-top: 1rem;">
+          <div class="summary-box">
+            <div class="summary-label">Data stimata</div>
+            <div class="summary-value" style="font-size: 1.05rem;">${etaLabel}</div>
+            <div class="summary-unit">~${eta.weeks} settimane</div>
+          </div>
+          <div class="summary-box">
+            <div class="summary-label">Ritmo previsto</div>
+            <div class="summary-value" style="font-size: 1.05rem;">${eta.kgPerWeek}</div>
+            <div class="summary-unit">kg/settimana</div>
+          </div>
+        </div>
+        ${eta.warning ? `<div class="small-muted" style="margin-top: 0.5rem; color: var(--danger);">${eta.warning}</div>` : ''}
+        <div class="small-muted" style="margin-top: 0.5rem;">Stima sul ritmo degli ultimi 7 giorni (TDEE ${tdeeAdaptive ? 'adattivo' : 'teorico'}: ${tdeeAdaptive || tdee} kcal). Cambia il ritmo, cambia la data.</div>
+      `;
+    }
+  }
+
+  return `
+    <div class="card weight-loss-card">
+      <h2>🎯 Obiettivo Peso</h2>
+      <form id="goalWeightForm" style="display: flex; gap: 0.75rem; align-items: flex-end; margin-top: 0.75rem;">
+        <label style="flex: 1;">
+          <span class="label-text">Peso obiettivo (kg)</span>
+          <input type="number" name="pesoObiettivoKg" min="30" max="300" step="0.1" value="${goal || ''}" placeholder="Es: 75" style="font-size: 16px;">
+        </label>
+        <button type="submit" class="primary" style="white-space: nowrap;">Salva</button>
+      </form>
+      ${etaHtml || (goal ? '' : '<div class="small-muted" style="margin-top: 0.75rem;">Imposta un obiettivo per vedere la data stimata di arrivo.</div>')}
+    </div>
   `;
 }
 
@@ -334,7 +403,7 @@ function renderProgressSummary(dailyBalances, dailyWeights, tdee, tdeeAdaptive, 
     html += `
       <div style="margin-top: 1rem; padding: 0.75rem; background: rgba(99,102,241,0.1); border-radius: 8px;">
         <div class="small-muted">TDEE Teorico: ${tdee} kcal</div>
-        <div class="small-muted">TDEE Adattivo: ${tdeeAdaptivo} kcal (${diff > 0 ? '+' : ''}${diff} kcal, ${diff > 0 ? '+' : ''}${diffPercent}%)</div>
+        <div class="small-muted">TDEE Adattivo: ${tdeeAdaptive} kcal (${diff > 0 ? '+' : ''}${diff} kcal, ${diff > 0 ? '+' : ''}${diffPercent}%)</div>
       </div>
     `;
   }
@@ -425,8 +494,20 @@ function renderAutoProjection(projections, userProfile) {
 }
 
 export function bindWeightLossEvents(container, callbacks) {
+  // Form obiettivo peso
+  const goalForm = container.querySelector('#goalWeightForm');
+  if (goalForm && callbacks.onSaveGoalWeight) {
+    goalForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const value = parseFloat(new FormData(goalForm).get('pesoObiettivoKg'));
+      if (value && value >= 30 && value <= 300) {
+        callbacks.onSaveGoalWeight(value);
+      }
+    });
+  }
+
   // Form sessione pesi
-  const weightsForm = container.getElementById('weightsSessionForm');
+  const weightsForm = container.querySelector('#weightsSessionForm');
   if (weightsForm) {
     weightsForm.addEventListener('submit', (e) => {
       e.preventDefault();
@@ -444,9 +525,9 @@ export function bindWeightLossEvents(container, callbacks) {
   }
 
   // Form sessione cardio
-  const cardioForm = container.getElementById('cardioSessionForm');
-  const treadmillVelocityLabel = container.getElementById('treadmillVelocityLabel');
-  const treadmillInclineLabel = container.getElementById('treadmillInclineLabel');
+  const cardioForm = container.querySelector('#cardioSessionForm');
+  const treadmillVelocityLabel = container.querySelector('#treadmillVelocityLabel');
+  const treadmillInclineLabel = container.querySelector('#treadmillInclineLabel');
   const cardioTipoSelect = cardioForm?.querySelector('select[name="tipo"]');
 
   if (cardioTipoSelect) {
@@ -476,7 +557,7 @@ export function bindWeightLossEvents(container, callbacks) {
   }
 
   // Form peso
-  const weightForm = container.getElementById('weightEntryForm');
+  const weightForm = container.querySelector('#weightEntryForm');
   if (weightForm) {
     weightForm.addEventListener('submit', (e) => {
       e.preventDefault();

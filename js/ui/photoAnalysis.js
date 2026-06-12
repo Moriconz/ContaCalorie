@@ -2,6 +2,8 @@
   Modale di analisi foto con elenco proposte AI.
 */
 
+import { escapeHtml } from '../utils.js';
+
 export function renderPhotoAnalysis(items) {
   return `
     <div>
@@ -11,7 +13,7 @@ export function renderPhotoAnalysis(items) {
         ${items.map((item, index) => `
           <div class="card" style="margin-bottom:0.75rem;">
             <div class="field-grid">
-              <label>Nome<input data-index="${index}" class="photoItemName" value="${item.name}"></label>
+              <label>Nome<input data-index="${index}" class="photoItemName" value="${escapeHtml(item.name)}"></label>
               <label>Grammi<input data-index="${index}" class="photoItemGrams" type="number" min="1" max="3000" value="${item.estimateGrams}"></label>
             </div>
             <div class="field-grid">

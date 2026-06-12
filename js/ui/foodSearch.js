@@ -2,6 +2,8 @@
   Schermata di ricerca alimenti e inserimento manuale rapido.
 */
 
+import { escapeHtml } from '../utils.js';
+
 export function renderFoodSearch(state, searchResults, userFoods) {
   return `
     <section class="section card">
@@ -14,17 +16,17 @@ export function renderFoodSearch(state, searchResults, userFoods) {
     <section class="section card">
       <h2>Alimenti personali</h2>
       <ul class="list-group">
-        ${userFoods.length ? userFoods.map(item => renderFoodResult(item, true)).join('') : '<li>Ancora nessun alimento salvato.</li>'}
+        ${userFoods.length ? userFoods.map(item => renderFoodResult(item, true)).join('') : `<li style="list-style: none;"><div class="empty-state"><span class="empty-state-emoji" aria-hidden="true">⭐</span><div class="empty-state-title">Nessun alimento personale</div><div class="empty-state-hint">Crea un cibo personalizzato con il bottone qui sopra.</div></div></li>`}
       </ul>
     </section>
   `;
 }
 
 function renderFoodResult(item, isUser = false) {
-  const subtitle = item.brand ? `${item.brand} · ${item.porzioneBase}` : item.porzioneBase;
+  const subtitle = item.brand ? `${escapeHtml(item.brand)} · ${item.porzioneBase}` : item.porzioneBase;
   return `
     <li>
-      <div class="list-item-title">${item.nome}</div>
+      <div class="list-item-title">${escapeHtml(item.nome)}</div>
       <div class="small-muted">${subtitle}</div>
       <button class="secondary small-action" data-food-id="${item.id}" data-food-source="${item.source}" type="button">Seleziona</button>
     </li>

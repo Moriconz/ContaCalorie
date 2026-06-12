@@ -1,35 +1,63 @@
 /**
- * Backup Service — Gestione export/import dati con validazione
- * Esporta tutti i dati utente (profilo, pasti, allenamenti, body comp) in JSON
- * Importa dati con validazione e sovrascrittura atomica
+ * Backup Service — Export/Import dei dati utente (DB reale `ContaCalorieDB` via storage.js).
+ *
+ * NOTA: in precedenza questo modulo operava su `conta-calorie-db` (indexedDbClient),
+ * un database che l'app non popola mai → backup vuoti. Ora usa direttamente storage.js,
+ * la stessa fonte dei dati dell'app.
  */
 
-import * as db from '../../db/indexedDbClient.js';
+import {
+  loadUserProfile, saveUserProfile,
+  loadUserFoods, saveUserFoods,
+  loadAllMeals, saveMealEntries,
+  loadAllCardioSessions, saveCardioSession,
+  loadAllStrengthSessions, saveStrengthSession,
+  loadDailyWeights, saveDailyWeight,
+  loadAllDailySteps, saveDailySteps,
+  loadBodyCompBaselines, saveBodyCompBaseline,
+  loadRecipes, saveRecipe,
+  loadActivityPreferences, saveActivityPreferences,
+  clearStore
+} from '../storage.js';
+
+const EXPORT_VERSION = 2;
 
 /**
- * Esporta tutti i dati utente come oggetto JSON
+ * Esporta tutti i dati utente come oggetto JSON serializzabile.
  */
 export async function exportAllUserData() {
   try {
-    const [userProfile, meals, workouts, bodyComp, settings, syncQueue] = await Promise.all([
-      db.getUserProfile(),
-      db.getAllItems('meals'),
-      db.getAllItems('workouts'),
-      db.getAllItems('bodyComp'),
-      db.getAllSettings(),
-      db.getSyncQueue()
+    const [
+      userProfile, userFoods, meals, cardioSessions,
+      strengthSessions, dailyWeights, dailySteps, bodyCompBaselines,
+      recipes, activityPreferences
+    ] = await Promise.all([
+      loadUserProfile(),
+      loadUserFoods(),
+      loadAllMeals(),
+      loadAllCardioSessions(),
+      loadAllStrengthSessions(),
+      loadDailyWeights(),
+      loadAllDailySteps(),
+      loadBodyCompBaselines(),
+      loadRecipes(),
+      loadActivityPreferences()
     ]);
 
     return {
-      version: 1,
+      version: EXPORT_VERSION,
       exportedAt: new Date().toISOString(),
-      appVersion: '0.1.0',
+      appVersion: '0.2.0',
       userProfile: userProfile || null,
+      userFoods: userFoods || [],
       meals: meals || [],
-      workouts: workouts || [],
-      bodyComp: bodyComp || [],
-      settings: settings || [],
-      syncQueue: syncQueue || []
+      cardioSessions: cardioSessions || [],
+      strengthSessions: strengthSessions || [],
+      dailyWeights: dailyWeights || [],
+      dailySteps: dailySteps || [],
+      bodyCompBaselines: bodyCompBaselines || [],
+      recipes: recipes || [],
+      activityPreferences: activityPreferences || null
     };
   } catch (error) {
     console.error('❌ Errore export dati:', error);
@@ -38,7 +66,7 @@ export async function exportAllUserData() {
 }
 
 /**
- * Scarica il backup come file JSON nel browser
+ * Scarica il backup come file JSON nel browser.
  */
 export async function downloadBackupFile() {
   try {
@@ -66,131 +94,72 @@ export async function downloadBackupFile() {
 }
 
 /**
- * Valida la struttura del file importato
+ * Valida la struttura del file importato. Accetta sia v2 (nuovo) che v1 (vecchio formato).
  */
 export function validateExportData(data) {
-  // Controlla che sia un oggetto
   if (typeof data !== 'object' || data === null) {
     return { valid: false, error: 'File non è un JSON valido' };
   }
-
-  // Controlla version
   if (!data.version || typeof data.version !== 'number') {
     return { valid: false, error: 'File di backup non valido (manca version)' };
   }
-
-  // Controlla exportedAt
   if (!data.exportedAt) {
     return { valid: false, error: 'File di backup non valido (manca exportedAt)' };
   }
-
-  // Controlla che userProfile abbia i campi necessari
-  if (data.userProfile) {
-    if (!data.userProfile.nome) {
-      return { valid: false, error: 'Profilo utente incompleto (manca nome)' };
+  if (data.userProfile && !data.userProfile.nome) {
+    return { valid: false, error: 'Profilo utente incompleto (manca nome)' };
+  }
+  // I campi array sono opzionali; se presenti devono essere array
+  for (const key of ['meals', 'userFoods', 'weightsSessions', 'cardioSessions', 'strengthSessions', 'dailyWeights', 'dailySteps', 'bodyCompBaselines', 'recipes']) {
+    if (data[key] !== undefined && !Array.isArray(data[key])) {
+      return { valid: false, error: `Campo "${key}" non è un array valido` };
     }
   }
-
-  // Controlla che arrays siano array
-  if (!Array.isArray(data.meals)) {
-    return { valid: false, error: 'Pasti non è un array valido' };
-  }
-  if (!Array.isArray(data.workouts)) {
-    return { valid: false, error: 'Allenamenti non è un array valido' };
-  }
-  if (!Array.isArray(data.bodyComp)) {
-    return { valid: false, error: 'Body comp non è un array valido' };
-  }
-  if (!Array.isArray(data.settings)) {
-    return { valid: false, error: 'Impostazioni non è un array valido' };
-  }
-
   return { valid: true };
 }
 
 /**
- * Importa dati nel database con modalità atomica
- * @param {object} data - Dati da importare
- * @param {string} mode - 'replace' o 'merge'
+ * Importa i dati nel DB reale.
+ * @param {object} data - dati validati
+ * @param {string} mode - 'replace' (svuota prima) o 'merge' (upsert)
  */
 export async function importAllUserData(data, mode = 'replace') {
+  const validation = validateExportData(data);
+  if (!validation.valid) {
+    throw new Error(validation.error);
+  }
+
+  console.log(`📥 Inizio import dati (mode: ${mode})`);
+
   try {
-    // Valida prima di importare
-    const validation = validateExportData(data);
-    if (!validation.valid) {
-      throw new Error(validation.error);
-    }
-
-    console.log(`📥 Inizio import dati (mode: ${mode})`);
-
     if (mode === 'replace') {
-      // Modalità REPLACE: pulisci e ricaribi tutto
-      console.log('  → Svuotamento store existenti...');
       await Promise.all([
-        db.clearStore('meals'),
-        db.clearStore('workouts'),
-        db.clearStore('bodyComp'),
-        db.clearStore('settings'),
-        db.clearStore('syncQueue')
+        clearStore('mealEntries'),
+        clearStore('userFoods'),
+        clearStore('cardioSessions'),
+        clearStore('strengthSessions'),
+        clearStore('dailyWeights'),
+        clearStore('dailySteps'),
+        clearStore('bodyCompBaselines'),
+        clearStore('recipes')
       ]);
-
-      console.log('  → Caricamento profilo...');
-      if (data.userProfile) {
-        await db.saveUserProfile(data.userProfile);
-      }
-
-      console.log('  → Caricamento pasti...');
-      for (const meal of data.meals || []) {
-        await db.putItem('meals', meal);
-      }
-
-      console.log('  → Caricamento allenamenti...');
-      for (const workout of data.workouts || []) {
-        await db.putItem('workouts', workout);
-      }
-
-      console.log('  → Caricamento body comp...');
-      for (const comp of data.bodyComp || []) {
-        await db.putItem('bodyComp', comp);
-      }
-
-      console.log('  → Caricamento impostazioni...');
-      for (const setting of data.settings || []) {
-        await db.putItem('settings', setting);
-      }
-
-      console.log('✅ Import completato (replace mode)');
-    } else if (mode === 'merge') {
-      // Modalità MERGE: aggiungi/aggiorna senza pulire
-      console.log('  → Merge profilo...');
-      if (data.userProfile) {
-        await db.saveUserProfile(data.userProfile);
-      }
-
-      console.log('  → Merge pasti...');
-      for (const meal of data.meals || []) {
-        await db.putItem('meals', meal);
-      }
-
-      console.log('  → Merge allenamenti...');
-      for (const workout of data.workouts || []) {
-        await db.putItem('workouts', workout);
-      }
-
-      console.log('  → Merge body comp...');
-      for (const comp of data.bodyComp || []) {
-        await db.putItem('bodyComp', comp);
-      }
-
-      console.log('  → Merge impostazioni...');
-      for (const setting of data.settings || []) {
-        await db.putItem('settings', setting);
-      }
-
-      console.log('✅ Import completato (merge mode)');
-    } else {
-      throw new Error(`Modalità import sconosciuta: ${mode}`);
     }
+
+    if (data.userProfile) await saveUserProfile(data.userProfile);
+    if (Array.isArray(data.userFoods) && data.userFoods.length) await saveUserFoods(data.userFoods);
+    if (Array.isArray(data.meals) && data.meals.length) await saveMealEntries(data.meals);
+
+    // Back-compat: i vecchi backup avevano "weightsSessions" → ora confluiscono in strengthSessions
+    for (const s of data.weightsSessions || []) await saveStrengthSession({ ...s, date: s.date || s.data });
+    for (const s of data.cardioSessions || []) await saveCardioSession(s);
+    for (const s of data.strengthSessions || []) await saveStrengthSession(s);
+    for (const w of data.dailyWeights || []) await saveDailyWeight(w);
+    for (const s of data.dailySteps || []) await saveDailySteps(s);
+    for (const b of data.bodyCompBaselines || []) await saveBodyCompBaseline(b);
+    for (const r of data.recipes || []) await saveRecipe(r);
+    if (data.activityPreferences) await saveActivityPreferences(data.activityPreferences);
+
+    console.log(`✅ Import completato (${mode})`);
   } catch (error) {
     console.error('❌ Errore import dati:', error);
     throw new Error(`Errore durante import: ${error.message}`);

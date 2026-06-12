@@ -1,0 +1,8 @@
+# Documentazione e script di sviluppo: non vanno pubblicati online
+docs/
+scripts/
+data/README.md
+README.md
+server.cjs
+.claude/
+*.md

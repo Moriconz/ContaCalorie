@@ -5,28 +5,16 @@
 
 export const PHOTO_NUTRITION_API_URL = '';
 
+/** True se il servizio di analisi foto è configurato. */
+export function isPhotoAnalysisConfigured() {
+  return Boolean(PHOTO_NUTRITION_API_URL);
+}
+
 export async function analyzePhoto(imageBlob) {
   if (!PHOTO_NUTRITION_API_URL) {
-    return new Promise(resolve => {
-      setTimeout(() => {
-        resolve({
-          items: [
-            {
-              name: 'Pasta al pomodoro',
-              estimateGrams: 220,
-              macro: { kcal: 360, proteine: 12, carboidrati: 65, grassi: 7, zuccheri: 5, fibra: 4 },
-              imageUri: ''
-            },
-            {
-              name: 'Insalata mista',
-              estimateGrams: 110,
-              macro: { kcal: 65, proteine: 2, carboidrati: 8, grassi: 3, zuccheri: 3, fibra: 2 },
-              imageUri: ''
-            }
-          ]
-        });
-      }, 850);
-    });
+    // Nessun endpoint configurato: errore esplicito invece di dati finti.
+    // (Prima restituiva un mock "Pasta al pomodoro" che sembrava un risultato reale.)
+    throw new Error('Analisi foto non configurata: imposta PHOTO_NUTRITION_API_URL.');
   }
 
   const formData = new FormData();

@@ -3,6 +3,8 @@
   Schema ricetta: { id, nome, descrizione?, porzioniBase, ingredients: [{foodRef, grammi, note?}], createdAt, updatedAt }
 */
 
+import { escapeHtml } from '../utils.js';
+
 export function renderRecipesSection(recipes) {
   return `
     <section class="section card">
@@ -14,9 +16,9 @@ export function renderRecipesSection(recipes) {
         <ul class="list-group">
           ${recipes.map(recipe => `
             <li>
-              <div class="list-item-title">${recipe.nome}</div>
+              <div class="list-item-title">${escapeHtml(recipe.nome)}</div>
               <div class="small-muted">${recipe.ingredients.length} ingredienti • Porzioni: ${recipe.porzioniBase || 1}</div>
-              ${recipe.descrizione ? `<div class="small-muted" style="font-size: 0.85rem;">${recipe.descrizione}</div>` : ''}
+              ${recipe.descrizione ? `<div class="small-muted" style="font-size: 0.85rem;">${escapeHtml(recipe.descrizione)}</div>` : ''}
               <div style="display: flex; gap: 0.5rem; margin-top: 0.5rem;">
                 <button class="secondary small-action" data-add-recipe-id="${recipe.id}" type="button">Aggiungi al giorno</button>
                 <button class="secondary small-action" data-edit-recipe-id="${recipe.id}" type="button">Modifica</button>
@@ -25,7 +27,7 @@ export function renderRecipesSection(recipes) {
             </li>
           `).join('')}
         </ul>
-      ` : '<p class="small-muted">Nessuna ricetta salvata ancora.</p>'}
+      ` : `<div class="empty-state"><span class="empty-state-emoji" aria-hidden="true">📖</span><div class="empty-state-title">Nessuna ricetta salvata</div><div class="empty-state-hint">Crea una ricetta con i tuoi ingredienti: la riusi in un tap.</div></div>`}
     </section>
   `;
 }
@@ -57,12 +59,12 @@ export function renderRecipeForm(recipe = null) {
 
       <label style="display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 1rem;">
         <span class="label-text">Nome ricetta</span>
-        <input id="recipeNameInput" type="text" value="${safeRecipe.nome || ''}" placeholder="es: Spaghetti al Ragù">
+        <input id="recipeNameInput" type="text" value="${escapeHtml(safeRecipe.nome || '')}" placeholder="es: Spaghetti al Ragù">
       </label>
 
       <label style="display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 1rem;">
         <span class="label-text">Descrizione (opzionale)</span>
-        <textarea id="recipeDescInput" placeholder="es: Ricetta tradizionale bolognese" style="min-height: 60px; padding: 0.75rem; border: 1px solid var(--glass-border); border-radius: 8px; background: var(--glass-secondary); color: var(--text-primary);">${safeRecipe.descrizione || ''}</textarea>
+        <textarea id="recipeDescInput" placeholder="es: Ricetta tradizionale bolognese" style="min-height: 60px; padding: 0.75rem; border: 1px solid var(--glass-border); border-radius: 8px; background: var(--glass-secondary); color: var(--text-primary);">${escapeHtml(safeRecipe.descrizione || '')}</textarea>
       </label>
 
       <label style="display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 1.5rem;">
@@ -84,7 +86,7 @@ export function renderRecipeForm(recipe = null) {
           ${safeRecipe.ingredients.length > 0 ? safeRecipe.ingredients.map((ing, idx) => `
             <div style="padding: 0.75rem; background: var(--glass-secondary); border-radius: 8px; display: flex; justify-content: space-between; align-items: center;">
               <div>
-                <div><strong>${ing.foodRef.name}</strong></div>
+                <div><strong>${escapeHtml(ing.foodRef.name)}</strong></div>
                 <div style="font-size: 0.85rem; color: var(--text-muted);">${ing.grammi}g</div>
               </div>
               <button class="secondary small-action" data-remove-ing-idx="${idx}" type="button">Rimuovi</button>

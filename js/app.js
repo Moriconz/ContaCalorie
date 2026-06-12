@@ -4,30 +4,38 @@
 */
 
 import { bootstrapApp } from './appBootstrap.js';
-import { loadUserProfile, saveUserProfile, loadUserFoods, saveUserFoods, loadMealsByDate, saveMealEntries, loadAllMeals, saveWeightsSession, loadWeightsSessions, saveCardioSession, loadCardioSessions, saveDailyWeight, loadDailyWeights, loadAllWeightsSessions, loadAllCardioSessions, deleteWeightsSession, deleteCardioSession, saveBodyCompBaseline, loadBodyCompBaselines, saveRecipe, loadRecipes, deleteRecipe, updateRecipe, loadRecipeById, saveDailySteps, loadDailyStepsByDate, loadDailyStepsByDateRange, deleteDailySteps, saveActivityPreferences, loadActivityPreferences, saveStrengthSession, loadStrengthSessionsByDateRange, updateStrengthSession, deleteStrengthSession, loadWeightsSessionsByDateRange, updateWeightsSession, loadCardioSessionsByDateRange, updateCardioSession } from './storage.js';
+import { loadUserProfile, saveUserProfile, loadUserFoods, saveUserFoods, loadMealsByDate, saveMealEntries, deleteMealEntry, loadAllMeals, saveCardioSession, loadCardioSessions, saveDailyWeight, loadDailyWeights, loadAllCardioSessions, deleteCardioSession, saveBodyCompBaseline, loadBodyCompBaselines, saveRecipe, loadRecipes, deleteRecipe, updateRecipe, loadRecipeById, saveDailySteps, loadDailyStepsByDate, loadDailyStepsByDateRange, deleteDailySteps, saveActivityPreferences, loadActivityPreferences, saveStrengthSession, loadStrengthSessionsByDateRange, loadAllStrengthSessions, updateStrengthSession, deleteStrengthSession, loadCardioSessionsByDateRange, updateCardioSession } from './storage.js';
 import { calculateEnergyTargets, aggregateDailySummary, calculateMacrosForAmount, buildNutritionWarning } from './nutritionEngine.js';
-import { searchFoods, getFoodDetails } from './nutritionDataProvider.js';
-import { analyzePhoto } from './photoNutrition.js';
+import { searchFoods, getFoodDetails, getMicrosIndex, getAllFoods } from './nutritionDataProvider.js';
+import { aggregateDailyMicros, analyzeMicronutrients, suggestFoodsForMicro } from './micronutrientEngine.js';
 import { renderOnboarding, bindOnboardingEvents } from './ui/onboarding.js';
-import { renderDashboard, bindDashboardEvents } from './ui/dashboard.js';
+import { renderDashboard, bindDashboardEvents, renderMicroDetail } from './ui/dashboard.js';
+import { renderNutritionView, bindNutritionViewEvents } from './ui/nutritionView.js';
+import { renderPhysicsView, bindPhysicsViewEvents } from './ui/physicsView.js';
+import { initSwipeNavigation } from './ui/swipeNav.js';
+import { lazyLoadImages } from './ui/lazyLoad.js';
 import { renderFoodSearch, bindFoodSearchEvents } from './ui/foodSearch.js';
 import { renderUserFoods, bindUserFoodsEvents, renderUserFoodForm, bindUserFoodFormEvents } from './ui/userFoods.js';
 import { renderRecipesSection, bindRecipesEvents, renderRecipeForm, bindRecipeFormEvents } from './ui/recipes.js';
 import { renderWeekView, bindWeekViewEvents } from './ui/weekView.js';
-import { renderPhotoAnalysis, bindPhotoAnalysisEvents } from './ui/photoAnalysis.js';
-import { renderEstimatedFoodForm, bindEstimatedFoodFormEvents } from './ui/estimatedFoodForm.js';
 import { renderWeightLoss, bindWeightLossEvents } from './ui/weightLoss.js';
 import { renderSettings, bindSettingsEvents } from './ui/settings.js';
+import { renderStatsView, bindStatsViewEvents } from './ui/statsView.js';
 import { renderActivitiesView, bindActivitiesEvents, showAddStrengthModal, showEditStrengthModal, showAddCardioModal, showEditCardioModal, showAddStepsModal, showProviderSelectionModal, showFileImportModal } from './ui/activities.js';
 import { PROVIDERS, getAvailableProviders, parseStepsFile, getConnectedProvider, setConnectedProvider, clearConnectedProvider } from './activitySyncProviders.js';
 import { triggerInstallPrompt } from './pwaHandler.js';
-import { aggregateDailyExercise, estimateWeightsCalories, estimateCardioCalories, estimateStepsCalories, shouldExcludeStepsCalories, applyEatBackCalories } from './activityEnergyEngine.js';
+import { aggregateDailyExercise, estimateWeightsCalories, estimateCardioCalories, estimateStepsCalories, shouldExcludeStepsCalories, applyEatBackCalories, computeDayActivityKcal } from './activityEnergyEngine.js';
 import { getTheoreticalTDEE, getDailyEnergyBalance, getEnergyBalanceSummary, estimateAdaptiveTDEE } from './weightLossEstimator.js';
 import { estimateBodyCompositionChange } from './bodyCompositionModel.js';
 import { getTrendWindowData, calculateAllProjections } from './trendProjection.js';
 import { getCurrentBaseline, computeBodyCompDeltasSinceBaseline, estimateCompositionToday, createBodyCompBaseline } from './bodyCompTracker.js';
+import { openEstimationWizard } from './estimationEngine.js';
+import { openComposedMealWizard } from './composedMealWizard.js';
 
 import { trackFoodUsage, getRecents, suggestMealMomentByTime, getLastMealMoment } from './recentFoodsTracker.js';
+import { escapeHtml, formatDateIT, buildLastNDates } from './utils.js';
+import { showModal, closeModal, showConfirm } from './ui/modal.js';
+import { wireVoiceButton, voiceButtonHtml } from './ui/voiceInput.js';
 const appState = {
   userProfile: null,
   nutritionTargets: null,
@@ -41,18 +49,87 @@ const appState = {
 const mainContent = document.getElementById('mainContent');
 const bottomNav = document.getElementById('bottomNav');
 const themeToggle = document.getElementById('themeToggle');
-const modalTemplate = document.getElementById('modalTemplate');
 
 function reportError(message) {
-  showToast(message, 4000);
+  showToast(message, { duration: 4000, type: 'error' });
 }
 
-function showToast(message, duration = 2500) {
+/**
+ * Toast 2.0 — supporta tipi (info/success/error), stacking e un'azione opzionale
+ * (es. "Annulla" per l'undo delle eliminazioni).
+ * Retro-compatibile: showToast(msg, 3000) continua a funzionare.
+ * @param {string} message
+ * @param {number|Object} optsOrDuration - durata ms, oppure { duration, type, action: { label, onClick } }
+ */
+function showToast(message, optsOrDuration = {}) {
+  const opts = typeof optsOrDuration === 'number' ? { duration: optsOrDuration } : optsOrDuration;
+  const { duration = 2500, type = 'info', action = null } = opts;
+
+  let container = document.getElementById('toastContainer');
+  if (!container) {
+    container = document.createElement('div');
+    container.id = 'toastContainer';
+    container.setAttribute('aria-live', 'polite');
+    document.body.appendChild(container);
+  }
+  // Massimo 3 toast visibili: rimuovi il più vecchio
+  while (container.children.length >= 3) container.firstChild.remove();
+
   const toast = document.createElement('div');
-  toast.className = 'toast';
-  toast.textContent = message;
-  document.body.appendChild(toast);
-  setTimeout(() => toast.remove(), duration);
+  toast.className = `toast toast-${type}`;
+  toast.setAttribute('role', 'status');
+
+  const text = document.createElement('span');
+  text.className = 'toast-text';
+  const icon = type === 'success' ? '✓ ' : type === 'error' ? '⚠️ ' : '';
+  text.textContent = icon + message;
+  toast.appendChild(text);
+
+  let timer;
+  const dismiss = () => {
+    toast.classList.add('toast-out');
+    setTimeout(() => toast.remove(), 250);
+  };
+
+  if (action) {
+    const btn = document.createElement('button');
+    btn.className = 'toast-action';
+    btn.type = 'button';
+    btn.textContent = action.label;
+    btn.addEventListener('click', () => {
+      clearTimeout(timer);
+      dismiss();
+      action.onClick();
+    });
+    toast.appendChild(btn);
+  }
+
+  container.appendChild(toast);
+  // Con azione (undo) lascia più tempo per cliccare
+  timer = setTimeout(dismiss, action ? Math.max(duration, 5000) : duration);
+}
+
+/**
+ * Elimina una sessione (pesi o cardio) con toast di Annulla.
+ * Carica il record prima di cancellarlo così l'undo lo ripristina identico (stesso id).
+ */
+async function deleteSessionWithUndo(kind, id, rerender) {
+  const all = kind === 'strength' ? await loadAllStrengthSessions() : await loadAllCardioSessions();
+  const record = all.find(sess => sess.id === id);
+  if (kind === 'strength') await deleteStrengthSession(id);
+  else await deleteCardioSession(id);
+  rerender();
+  showToast(kind === 'strength' ? 'Allenamento eliminato' : 'Sessione cardio eliminata', {
+    type: 'success',
+    action: record ? {
+      label: 'Annulla',
+      onClick: async () => {
+        if (kind === 'strength') await saveStrengthSession(record);
+        else await saveCardioSession(record);
+        rerender();
+      }
+    } : null
+  });
 }
 
 async function loadState() {
@@ -64,7 +141,14 @@ async function loadState() {
 
 function setActiveNav(view) {
   appState.currentView = view;
-  bottomNav.querySelectorAll('.nav-button').forEach(btn => btn.classList.toggle('active', btn.dataset.view === view));
+  const navView = (view === 'weight' || view === 'activities' || view === 'weightloss') ? 'physics' : view;
+  bottomNav.querySelectorAll('.nav-button').forEach(btn => {
+    const isActive = btn.dataset.view === navView;
+    btn.classList.toggle('active', isActive);
+    // Stato per screen reader
+    if (isActive) btn.setAttribute('aria-current', 'page');
+    else btn.removeAttribute('aria-current');
+  });
 }
 
 function goToView(view) {
@@ -72,35 +156,50 @@ function goToView(view) {
   renderCurrentView();
 }
 
+let _lastRenderedView = null;
+
 async function renderCurrentView() {
   if (!appState.userProfile) {
     return renderOnboardingView();
   }
 
+  // UX: cambiando vista si riparte dall'alto; aggiornando la stessa vista
+  // (es. dopo aver aggiunto un pasto) si mantiene la posizione di scroll.
+  const previousScrollY = window.scrollY;
+  const isSameView = _lastRenderedView === appState.currentView;
+
+  // Render the view
+  if (appState.currentView === 'dashboard') {
+    await renderDashboardView();
+  } else if (appState.currentView === 'nutrition') {
+    await renderNutritionViewPage();
+  } else if (appState.currentView === 'physics') {
+    await renderPhysicsViewPage();
+  } else if (appState.currentView === 'week') {
+    await renderWeekViewPage();
+  } else if (appState.currentView === 'search') {
+    await renderSearchView();
+  } else if (appState.currentView === 'foods') {
+    await renderFoodsView();
+  } else if (appState.currentView === 'weight') {
+    await renderPhysicsViewPage();
+  } else if (appState.currentView === 'activities') {
+    await renderPhysicsViewPage();
+  } else if (appState.currentView === 'stats') {
+    await renderStatsViewPage();
+  } else if (appState.currentView === 'weightloss') {
+    await renderWeightLossView();
+  } else if (appState.currentView === 'settings') {
+    await renderSettingsView();
+  } else {
+    await renderDashboardView();
+  }
+
+  // Aggiorna nav DOPO il render del view
   setActiveNav(appState.currentView);
 
-  if (appState.currentView === 'dashboard') {
-    return renderDashboardView();
-  }
-  if (appState.currentView === 'week') {
-    return renderWeekViewPage();
-  }
-  if (appState.currentView === 'search') {
-    return renderSearchView();
-  }
-  if (appState.currentView === 'foods') {
-    return renderFoodsView();
-  }
-  if (appState.currentView === 'weight') {
-    return renderWeightLossView();
-  }
-  if (appState.currentView === 'activities') {
-    return renderActivitiesViewPage();
-  }
-  if (appState.currentView === 'settings') {
-    return renderSettingsView();
-  }
-  return renderDashboardView();
+  window.scrollTo({ top: isSameView ? previousScrollY : 0 });
+  _lastRenderedView = appState.currentView;
 }
 
 function renderOnboardingView() {
@@ -120,6 +219,7 @@ function renderOnboardingView() {
 async function renderDashboardView() {
   const summary = aggregateDailySummary(appState.meals, appState.nutritionTargets);
   const warnings = buildNutritionWarning(appState.userProfile, summary);
+  const theoreticalTdee = getTheoreticalTDEE(appState.userProfile);
 
   // Load activity data for today
   let activityData = { strengthCount: 0, cardioCount: 0, steps: 0, activityKcal: 0 };
@@ -142,17 +242,14 @@ async function renderDashboardView() {
       includeCardioInExpenditure: true
     };
 
-    const strengthKcal = todayStrength.reduce((sum, s) => sum + (s.estimatedKcal || estimateWeightsCalories(s, appState.userProfile)), 0);
-    const cardioKcal = todayCardio.reduce((sum, c) => sum + (c.estimatedKcal || estimateCardioCalories(c, appState.userProfile)), 0);
-    const stepsExcluded = shouldExcludeStepsCalories(todaySteps, todayCardio, activityPrefs);
-    const stepsKcal = (!stepsExcluded && todaySteps) ? estimateStepsCalories(todaySteps, appState.userProfile, activityPrefs) : 0;
+    const dayKcal = computeDayActivityKcal(todayStrength, todayCardio, todaySteps, appState.userProfile, activityPrefs);
 
     activityData = {
       strengthCount: todayStrength.length,
       cardioCount: todayCardio.length,
       steps: todaySteps?.steps || 0,
       distanceKm: todaySteps?.distanceKm,
-      activityKcal: strengthKcal + cardioKcal + stepsKcal,
+      activityKcal: dayKcal.activityKcal,
       strengthSessions: todayStrength,
       cardioSessions: todayCardio,
       prefs: activityPrefs
@@ -164,36 +261,26 @@ async function renderDashboardView() {
   // Calculate weekly trend (last 7 days)
   try {
     const dailyBalances = [];
-    const lastSeven = [];
-    for (let i = 6; i >= 0; i--) {
-      const date = new Date(appState.currentDate);
-      date.setDate(date.getDate() - i);
-      lastSeven.push(date.toISOString().split('T')[0]);
-    }
+    const lastSeven = buildLastNDates(appState.currentDate, 7);
 
-    const [allMeals, allStrength, allCardio, allSteps] = await Promise.all([
+    const [allMeals, weekStrength, weekCardio, weekSteps] = await Promise.all([
       loadAllMeals(),
-      loadAllWeightsSessions(),
-      loadAllCardioSessions(),
+      loadStrengthSessionsByDateRange(lastSeven[0], lastSeven[lastSeven.length - 1]),
+      loadCardioSessionsByDateRange(lastSeven[0], lastSeven[lastSeven.length - 1]),
       loadDailyStepsByDateRange(lastSeven[0], lastSeven[lastSeven.length - 1])
     ]);
 
     for (const date of lastSeven) {
       const dayMeals = allMeals.filter(m => m.data === date);
       const daySummary = aggregateDailySummary(dayMeals, appState.nutritionTargets);
-      const dayStrength = allStrength.filter(s => s.data === date);
-      const dayCardio = allCardio.filter(c => c.data === date);
-      const daySteps = allSteps.find(s => s.data === date);
+      const dayStrength = weekStrength.filter(s => s.date === date);
+      const dayCardio = weekCardio.filter(c => c.date === date);
+      const daySteps = weekSteps.find(s => s.date === date);
 
-      const sKcal = dayStrength.reduce((sum, s) => sum + (s.estimatedKcal || estimateWeightsCalories(s, appState.userProfile)), 0);
-      const cKcal = dayCardio.reduce((sum, c) => sum + (c.estimatedKcal || estimateCardioCalories(c, appState.userProfile)), 0);
-      const stepsExcl = shouldExcludeStepsCalories(daySteps, dayCardio, activityData.prefs);
-      const stsKcal = (!stepsExcl && daySteps) ? estimateStepsCalories(daySteps, appState.userProfile, activityData.prefs) : 0;
-      const dayActivityKcal = sKcal + cKcal + stsKcal;
+      const dayActivityKcal = computeDayActivityKcal(dayStrength, dayCardio, daySteps, appState.userProfile, activityData.prefs).activityKcal;
 
       const intake = Math.round(daySummary.totaleCalorie || 0);
-      const tdeeBase = Math.round(daySummary.tdee || 0);
-      const tdeeTotal = tdeeBase + dayActivityKcal;
+      const tdeeTotal = theoreticalTdee + dayActivityKcal;
       const balance = intake - tdeeTotal;
 
       dailyBalances.push(balance);
@@ -221,6 +308,7 @@ async function renderDashboardView() {
 
   let bodyCompData = null;
   let baselines = [];
+  let dailyWeights = [];
 
   try {
     baselines = await loadBodyCompBaselines();
@@ -230,12 +318,13 @@ async function renderDashboardView() {
 
     if (currentBaseline) {
       console.log('Caricamento dati per calcolo composizione...');
-      const [allMeals, allWeightsSessions, allCardioSessions, dailyWeights] = await Promise.all([
+      const [allMeals, allWeightsSessions, allCardioSessions, weights] = await Promise.all([
         loadAllMeals(),
-        loadAllWeightsSessions(),
+        loadAllStrengthSessions(),
         loadAllCardioSessions(),
         loadDailyWeights()
       ]);
+      dailyWeights = weights;
 
       console.log('Dati caricati:', { mealsCount: allMeals.length, weightsCount: allWeightsSessions.length, cardioCount: allCardioSessions.length, weightsCount: dailyWeights.length });
 
@@ -275,18 +364,345 @@ async function renderDashboardView() {
     bodyCompData = null;
   }
 
-  mainContent.innerHTML = renderDashboard(appState, summary, warnings, bodyCompData, activityData);
+  appState.dailyWeights = dailyWeights;
+  summary.tdee = theoreticalTdee;
+  summary.activityKcal = activityData.activityKcal;
+
+  // Micronutrienti: aggrega dai pasti CREA, rileva carenze, suggerisci integrazioni
+  let microData = null;
+  try {
+    const [microsIndex, allFoods] = await Promise.all([getMicrosIndex(), getAllFoods()]);
+    const daily = aggregateDailyMicros(appState.meals, microsIndex);
+    const analysis = analyzeMicronutrients(daily, appState.userProfile);
+    const remainingKcal = Math.max(0, (appState.nutritionTargets?.calorie || 0) - (summary.totaleCalorie || 0));
+    const suggestions = {};
+    for (const m of analysis.filter(x => x.status === 'low' || x.status === 'medium').slice(0, 4)) {
+      suggestions[m.key] = suggestFoodsForMicro(m.key, allFoods, remainingKcal, Math.max(0, m.rda - m.actual));
+    }
+    microData = { analysis, suggestions, remainingKcal, coverage: daily, hasMeals: appState.meals.length > 0 };
+  } catch (err) {
+    console.warn('Errore calcolo micronutrienti:', err);
+  }
+
+  mainContent.innerHTML = renderDashboard(appState, summary, warnings, bodyCompData, activityData, microData);
+  lazyLoadImages();
   bindDashboardEvents(mainContent, {
-    onAddMeal: () => openQuickAdd(),
+    onAddMeal: () => goToView('nutrition'),
     onAddActivity: () => goToView('activities'),
     onAddWeight: () => showWeightUpdateModal(),
     onUpdateWeight: () => showWeightUpdateModal(),
-    onGoToWeight: () => goToView('weight'),
-    onGoToActivities: () => goToView('activities'),
-    onGoToStats: () => goToView('statistics'),
-    onGoToNutrition: () => goToView('search'),
-    onBodyComp: () => openBodyCompBaselineForm(baselines)
+    onGoToWeight: () => goToView('physics'),
+    onGoToActivities: () => goToView('physics'),
+    onGoToNutrition: () => goToView('nutrition'),
+    onBodyComp: () => openBodyCompBaselineForm(baselines),
+    onMicroDetail: () => {
+      if (microData?.analysis) showModal(renderMicroDetail(microData.analysis));
+    },
+    onGoToProjections: () => goToView('weightloss'),
+    onChangeDate: async (newDate) => {
+      appState.currentDate = newDate;
+      appState.meals = await loadMealsByDate(newDate);
+      renderCurrentView();
+    }
   });
+}
+
+async function renderNutritionViewPage() {
+  const summary = aggregateDailySummary(appState.meals, appState.nutritionTargets);
+
+  // Load weekly data for analysis
+  try {
+    const allMeals = await loadAllMeals();
+    const lastSeven = [];
+    for (let i = 6; i >= 0; i--) {
+      const date = new Date(appState.currentDate);
+      date.setDate(date.getDate() - i);
+      lastSeven.push(date.toISOString().split('T')[0]);
+    }
+
+    const weeklyIntake = lastSeven.map(date => {
+      const dayMeals = allMeals.filter(m => m.data === date);
+      return dayMeals.reduce((sum, m) => sum + (m.macroCalcolate?.kcal || 0), 0);
+    });
+    summary.weeklyIntakeAvg = Math.round(weeklyIntake.reduce((a, b) => a + b, 0) / 7);
+  } catch (err) {
+    console.warn('Errore nel caricamento dati settimanali:', err);
+  }
+
+  mainContent.innerHTML = renderNutritionView(appState, summary);
+  lazyLoadImages();
+  bindNutritionViewEvents(mainContent, {
+    onAddMealToMoment: (moment) => {
+      const momentMap = { 'Colazione': 'colazione', 'Pranzo': 'pranzo', 'Merenda': 'merenda', 'Cena': 'cena' };
+      openQuickAddWithMoment(momentMap[moment] || moment);
+    },
+    onEditMeal: (moment, index) => {
+      editMealModal(moment, index);
+    },
+    onDeleteMeal: async (moment, index) => {
+      try {
+        const momentMap = { 'Colazione': 'colazione', 'Spuntino': 'spuntino', 'Pranzo': 'pranzo', 'Merenda': 'merenda', 'Cena': 'cena', 'Altro': 'altro' };
+        const actualMoment = momentMap[moment] || moment;
+        const mealsOfMoment = appState.meals.filter(m => m.momento === actualMoment);
+        const target = mealsOfMoment[index];
+        if (!target) return;
+        appState.meals = appState.meals.filter(m => m.id !== target.id);
+        await deleteMealEntry(target.id); // FIX: ora la cancellazione è persistita davvero
+        renderNutritionViewPage();
+        showToast('Pasto eliminato', {
+          type: 'success',
+          action: {
+            label: 'Annulla',
+            onClick: async () => {
+              await saveMealEntries([target]);
+              appState.meals = await loadMealsByDate(appState.currentDate);
+              renderCurrentView();
+            }
+          }
+        });
+      } catch (err) {
+        console.error('Errore eliminazione pasto:', err);
+        showToast('Errore nell\'eliminazione', { duration: 3000, type: 'error' });
+      }
+    },
+    onCreateCustomFood: () => openCustomFoodForm(),
+    onEditCustomFood: (foodId) => {
+      editCustomFoodModal(foodId);
+    },
+    onDeleteCustomFood: async (foodId) => {
+      try {
+        const updatedFoods = appState.userFoods.filter(f => f.id !== foodId);
+        await saveUserFoods(updatedFoods);
+        appState.userFoods = updatedFoods;
+        renderNutritionViewPage();
+        showToast('Alimento eliminato');
+      } catch (err) {
+        console.error('Errore eliminazione alimento:', err);
+        showToast('Errore nell\'eliminazione', 3000);
+      }
+    }
+  });
+
+}
+async function renderPhysicsViewPage() {
+  const today = appState.currentDate;
+  const sevenDaysAgo = new Date(today);
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
+  const startDate = sevenDaysAgo.toISOString().slice(0, 10);
+
+  try {
+    const [weekStrength, weekCardio, weekSteps, dailyWeights, prefs] = await Promise.all([
+      loadStrengthSessionsByDateRange(startDate, today),
+      loadCardioSessionsByDateRange(startDate, today),
+      loadDailyStepsByDateRange(startDate, today),
+      loadDailyWeights(),
+      loadActivityPreferences()
+    ]);
+
+    const activityPrefs = prefs || {
+      energyModel: 'tdee_plus_extras',
+      avoidDoubleCountingWalking: true,
+      eatBackMode: 'partial',
+      eatBackRatio: 0.3,
+      includeStepsInTdee: true,
+      stepGoal: 10000,
+      includeStrengthInExpenditure: true,
+      includeCardioInExpenditure: true
+    };
+
+    // Build last7Days data structure
+    const last7Days = Array.from({ length: 7 }).map((_, idx) => {
+      const day = new Date();
+      day.setDate(day.getDate() - (6 - idx));
+      const dateKey = day.toISOString().slice(0, 10);
+
+      const dayStrength = weekStrength.filter(s => s.date === dateKey);
+      const dayCardio = weekCardio.filter(c => c.date === dateKey);
+      const daySteps = weekSteps.find(s => s.date === dateKey);
+
+      const strengthMin = dayStrength.reduce((sum, s) => sum + (s.durationMin || 0), 0);
+      const cardioMin = dayCardio.reduce((sum, c) => sum + (c.durationMin || 0), 0);
+      const dayKcal = computeDayActivityKcal(dayStrength, dayCardio, daySteps, appState.userProfile, activityPrefs);
+
+      return {
+        date: dateKey,
+        strengthCount: dayStrength.length,
+        cardioCount: dayCardio.length,
+        strengthMin,
+        cardioMin,
+        steps: daySteps?.steps || 0,
+        activityKcal: dayKcal.activityKcal,
+        strengthSessions: dayStrength,
+        cardioSessions: dayCardio
+      };
+    });
+
+    // Get today's activity summary
+    const todayDate = appState.currentDate;
+    const todayStrength = weekStrength.filter(s => s.data === todayDate);
+    const todayCardio = weekCardio.filter(c => c.data === todayDate);
+    const todaySteps = weekSteps.find(s => s.data === todayDate);
+
+    // Get activity sync status
+    const connectedProvider = getConnectedProvider();
+    const activitySyncStatus = connectedProvider ? {
+      connectedProvider,
+      lastSyncDate: localStorage.getItem('lastActivitySyncDate')
+    } : null;
+
+    const physicsState = {
+      userProfile: appState.userProfile,
+      last7Days,
+      todayStrength,
+      todayCardio,
+      todaySteps,
+      prefs: activityPrefs,
+      activitySyncStatus,
+      dailyWeights
+    };
+
+    mainContent.innerHTML = renderPhysicsView(physicsState);
+  lazyLoadImages();
+    bindPhysicsViewEvents(mainContent, {
+      onAddStrength: () => showAddStrengthModal(async (data) => {
+        await saveStrengthSession(data);
+        renderPhysicsViewPage();
+        showToast('Allenamento salvato');
+      }),
+      onEditStrength: (id) => {
+        const session = weekStrength.find(s => s.id === id);
+        if (session) {
+          showEditStrengthModal(session, async (data) => {
+            await updateStrengthSession(id, data);
+            renderPhysicsViewPage();
+            showToast('Allenamento aggiornato');
+          });
+        }
+      },
+      onDeleteStrength: async (id) => {
+        try {
+          await deleteSessionWithUndo('strength', id, renderPhysicsViewPage);
+        } catch (err) {
+          showToast('Errore eliminazione allenamento', { duration: 3000, type: 'error' });
+        }
+      },
+      onAddCardio: () => showAddCardioModal(async (data) => {
+        await saveCardioSession(data);
+        renderPhysicsViewPage();
+        showToast('Cardio salvato');
+      }),
+      onEditCardio: (id) => {
+        const session = weekCardio.find(c => c.id === id);
+        if (session) {
+          showEditCardioModal(session, async (data) => {
+            await updateCardioSession(id, data);
+            renderPhysicsViewPage();
+            showToast('Cardio aggiornato');
+          });
+        }
+      },
+      onDeleteCardio: async (id) => {
+        try {
+          await deleteSessionWithUndo('cardio', id, renderPhysicsViewPage);
+        } catch (err) {
+          showToast('Errore eliminazione cardio', { duration: 3000, type: 'error' });
+        }
+      },
+      onAddSteps: () => showAddStepsModal(async (data) => {
+        await saveDailySteps(data);
+        renderPhysicsViewPage();
+        showToast('Passi salvati');
+      }),
+      onSyncSteps: () => {
+        try {
+          showProviderSelectionModal(async (providerId, provider) => {
+            showFileImportModal(provider, async (recordsToImport) => {
+              try {
+                let imported = 0;
+                let skipped = 0;
+                const errors = [];
+
+                for (const record of recordsToImport) {
+                  try {
+                    await saveDailySteps({
+                      date: record.date,
+                      steps: record.steps,
+                      distanceKm: record.distanceKm,
+                      activeMinutes: record.activeMinutes,
+                      source: providerId,
+                      syncMeta: {
+                        provider: providerId,
+                        importedAt: new Date().toISOString(),
+                        rawPayloadVersion: 'csv_import'
+                      }
+                    });
+                    imported++;
+                  } catch (err) {
+                    skipped++;
+                    errors.push(`${record.date}: ${err.message}`);
+                  }
+                }
+
+                if (imported === 0) {
+                  showToast('Nessun record importato.', { duration: 4000, type: 'error' });
+                  return { success: false, error: 'Nessun record importato con successo' };
+                }
+
+                // Update sync metadata in localStorage
+                setConnectedProvider(providerId);
+                localStorage.setItem('activitySyncLastTime', new Date().toLocaleString('it-IT'));
+                const existingCount = localStorage.getItem('activitySyncDaysCount') ? parseInt(localStorage.getItem('activitySyncDaysCount')) : 0;
+                localStorage.setItem('activitySyncDaysCount', (existingCount + imported).toString());
+
+                showToast(`✅ ${imported} giorni importati${skipped > 0 ? `, ${skipped} saltati` : ''}.`);
+                renderPhysicsViewPage();
+                return { success: true };
+              } catch (err) {
+                console.error('Errore durante import:', err);
+                showToast('❌ Errore durante l\'importazione. Riprova.', 4000);
+                return { success: false, error: err.message };
+              }
+            }, { parseStepsFile });
+          }, { PROVIDERS, getAvailableProviders });
+        } catch (err) {
+          console.error('Errore apertura provider selection:', err);
+          showToast('Errore. Riprova.', { duration: 4000, type: 'error' });
+        }
+      },
+      onDisconnectProvider: async () => {
+        try {
+          clearConnectedProvider();
+          localStorage.removeItem('activitySyncLastTime');
+          localStorage.removeItem('activitySyncDaysCount');
+          showToast('Provider scollegato.', { type: 'success' });
+          renderPhysicsViewPage();
+        } catch (err) {
+          console.error('Errore disconnessione provider:', err);
+          showToast('Errore. Riprova.', { duration: 4000, type: 'error' });
+        }
+      },
+      onAddWeight: () => {
+        showAddWeightModal(async (data) => {
+          await saveDailyWeight(data);
+          renderPhysicsViewPage();
+          showToast('Peso registrato');
+        });
+      },
+      onDeleteWeight: async (date) => {
+        try {
+          await deleteDailyWeights(date);
+          renderPhysicsViewPage();
+          showToast('Peso eliminato');
+        } catch (err) {
+          showToast('Errore eliminazione peso', { duration: 3000, type: 'error' });
+        }
+      }
+    });
+
+  } catch (err) {
+    console.error('Errore nel caricamento fisica:', err);
+    mainContent.innerHTML = '<div class="section card"><p>Errore nel caricamento dati attività.</p></div>';
+  }
 }
 
 function renderSearchView() {
@@ -295,7 +711,14 @@ function renderSearchView() {
     onSearch: executeFoodSearch,
     onCustomFood: () => openCustomFoodForm(),
     onSelectFood: handleFoodSelection,
-    onEstimatedFood: () => openEstimatedFoodForm()
+    onEstimatedFood: () => openEstimationWizard(null, async (mealEntry) => {
+      appState.meals.push(mealEntry);
+      await saveMealEntries([mealEntry]);
+      trackFoodUsage(mealEntry.foodRef, mealEntry.grammi);
+      closeModal();
+      renderCurrentView();
+      showToast('✓ Alimento da CREA aggiunto (dati verificati)');
+    })
   });
 }
 
@@ -319,9 +742,9 @@ async function renderWeightLossView() {
   // Carica tutti i dati necessari
   const [allMeals, todayWeightsSessions, todayCardioSessions, allWeightsSessions, allCardioSessions, dailyWeights] = await Promise.all([
     loadAllMeals(),
-    loadWeightsSessions(appState.currentDate),
+    loadStrengthSessionsByDateRange(appState.currentDate, appState.currentDate),
     loadCardioSessions(appState.currentDate),
-    loadAllWeightsSessions(),
+    loadAllStrengthSessions(),
     loadAllCardioSessions(),
     loadDailyWeights()
   ]);
@@ -419,13 +842,20 @@ async function renderWeightLossView() {
 
   mainContent.innerHTML = renderWeightLoss(renderData);
   bindWeightLossEvents(mainContent, {
+    onSaveGoalWeight: async (pesoObiettivoKg) => {
+      appState.userProfile = { ...appState.userProfile, pesoObiettivoKg };
+      await saveUserProfile(appState.userProfile);
+      renderWeightLossView();
+      showToast('Obiettivo peso salvato.');
+    },
     onSaveWeightsSession: async (session) => {
+      // Salva nello store attivo strengthSessions (coerente con la lettura della vista)
       const sessionToSave = {
         id: crypto.randomUUID(),
-        data: appState.currentDate,
+        date: appState.currentDate,
         ...session
       };
-      await saveWeightsSession(sessionToSave);
+      await saveStrengthSession(sessionToSave);
       renderWeightLossView();
       showToast('Sessione pesi aggiunta.');
     },
@@ -450,13 +880,7 @@ async function renderWeightLossView() {
       showToast('Peso registrato.');
     },
     onDeleteSession: async (type, id) => {
-      if (type === 'weights') {
-        await deleteWeightsSession(id);
-      } else if (type === 'cardio') {
-        await deleteCardioSession(id);
-      }
-      renderWeightLossView();
-      showToast('Sessione eliminata.');
+      await deleteSessionWithUndo(type === 'weights' ? 'strength' : 'cardio', id, renderWeightLossView);
     },
   });
 }
@@ -563,7 +987,7 @@ function showFoodDetailModal(food) {
     <div>
       <h1>Aggiungi alimento</h1>
       <div class="card">
-        <p><strong>${food.nome}</strong>${food.brand ? ` - ${food.brand}` : ''}</p>
+        <p><strong>${escapeHtml(food.nome)}</strong>${food.brand ? ` - ${escapeHtml(food.brand)}` : ''}</p>
         <p class="small-muted">${food.porzioneBase}</p>
         <label>Momento del pasto<select id="mealMoment">
           <option value="colazione" ${suggestedMoment === 'colazione' ? 'selected' : ''}>Colazione</option>
@@ -613,6 +1037,7 @@ function showFoodDetailModal(food) {
         foodRef: { id: food.id, source: food.source, name: food.nome },
         grammi: grams,
         macroCalcolate,
+        per100g: food.per100g, // riferimento stabile per modifiche successive (no drift)
         origin: 'manual_search',
         note: ''
       };
@@ -630,6 +1055,175 @@ function showFoodDetailModal(food) {
       if (e.key === 'Enter') {
         container.querySelector('#confirmAddFood').click();
       }
+    });
+  });
+}
+
+/**
+ * Riferimento per-100g stabile di un pasto. Se l'entry non ha `per100g` salvato
+ * (entry storiche o stime), lo deriva UNA volta da macroCalcolate/grammi; il
+ * chiamante lo persiste poi nell'entry, evitando il drift da arrotondamenti
+ * ripetuti a ogni modifica.
+ */
+function getPer100gRef(meal) {
+  if (meal.per100g && typeof meal.per100g.kcal === 'number') return meal.per100g;
+  const g = meal.grammi || 100;
+  const m = meal.macroCalcolate || {};
+  return {
+    kcal: (m.kcal || 0) * 100 / g,
+    proteine: (m.proteine || 0) * 100 / g,
+    carboidrati: (m.carboidrati || 0) * 100 / g,
+    grassi: (m.grassi || 0) * 100 / g,
+    zuccheri: (m.zuccheri || 0) * 100 / g,
+    fibra: (m.fibra || 0) * 100 / g
+  };
+}
+
+function editMealModal(moment, mealIndex) {
+  const momentMap = { 'Colazione': 'colazione', 'Spuntino': 'spuntino', 'Pranzo': 'pranzo', 'Merenda': 'merenda', 'Cena': 'cena', 'Altro': 'altro' };
+  const actualMoment = momentMap[moment] || moment;
+  const mealEntries = appState.meals.filter(m => m.momento === actualMoment);
+  const meal = mealEntries[mealIndex];
+
+  if (!meal) {
+    reportError('Pasto non trovato');
+    return;
+  }
+
+  const html = `
+    <div>
+      <h1 style="margin-top: 0;">Modifica Pasto</h1>
+      <div class="card">
+        <div style="margin-bottom: 1.5rem;">
+          <strong style="font-size: 1.1rem;">${escapeHtml(meal.foodRef.name)}</strong>
+          <p class="small-muted" style="margin: 0.25rem 0 0.75rem 0;">
+            ${actualMoment.charAt(0).toUpperCase() + actualMoment.slice(1)}
+          </p>
+        </div>
+
+        <label style="display: flex; flex-direction: column; gap: 0.25rem; margin-bottom: 1rem;">
+          <span class="label-text">Momento del pasto</span>
+          <select id="editMealMoment">
+            <option value="colazione">Colazione</option>
+            <option value="spuntino">Spuntino</option>
+            <option value="pranzo">Pranzo</option>
+            <option value="merenda">Merenda</option>
+            <option value="cena">Cena</option>
+            <option value="altro">Altro</option>
+          </select>
+        </label>
+
+        <label style="display: flex; flex-direction: column; gap: 0.25rem; margin-bottom: 1rem;">
+          <span class="label-text">Grammi</span>
+          <input id="editMealGrams" type="number" min="1" max="3000" style="font-size: 16px;">
+        </label>
+
+        <label style="display: flex; flex-direction: column; gap: 0.25rem; margin-bottom: 1rem;">
+          <span class="label-text">Note (opzionale)</span>
+          <textarea id="editMealNote" placeholder="Es: meno olio, senza sale..." style="padding: 0.75rem; border: 1px solid var(--border); border-radius: 6px; font-size: 14px; resize: vertical; min-height: 60px;"></textarea>
+        </label>
+
+        <div id="editMealDetailCalc" class="small-muted" style="padding: 0.75rem; background: var(--glass-secondary); border-radius: 6px; margin-bottom: 1rem;"></div>
+
+        <div class="field-grid">
+          <button id="confirmEditMeal" class="primary">Salva Modifiche</button>
+          <button id="cancelEditMeal" class="secondary">Annulla</button>
+        </div>
+      </div>
+    </div>
+  `;
+
+  showModal(html, container => {
+    const momentSelect = container.querySelector('#editMealMoment');
+    const gramsInput = container.querySelector('#editMealGrams');
+    const noteInput = container.querySelector('#editMealNote');
+    const detail = container.querySelector('#editMealDetailCalc');
+
+    // Set initial values
+    momentSelect.value = meal.momento;
+    gramsInput.value = meal.grammi;
+    noteInput.value = meal.note || '';
+
+    const per100gRef = getPer100gRef(meal);
+
+    function updateDetail() {
+      const grams = Number(gramsInput.value) || 0;
+      const macro = calculateMacrosForAmount({ per100g: per100gRef }, grams);
+      detail.textContent = `Kcal: ${macro.kcal} • Prot: ${macro.proteine.toFixed(1)} g • Carbo: ${macro.carboidrati.toFixed(1)} g • Grassi: ${macro.grassi.toFixed(1)} g`;
+    }
+
+    updateDetail();
+    gramsInput.addEventListener('input', updateDetail);
+
+    gramsInput.focus();
+    gramsInput.select();
+
+    container.querySelector('#confirmEditMeal').addEventListener('click', async () => {
+      const grams = Number(gramsInput.value);
+      if (!grams || grams < 1) {
+        reportError('Inserisci un valore di grammi valido.');
+        return;
+      }
+
+      const newMoment = momentSelect.value;
+      const macroCalcolate = calculateMacrosForAmount({ per100g: per100gRef }, grams);
+
+      // Update the meal entry (persiste anche per100g per le modifiche future)
+      const updatedMeal = {
+        ...meal,
+        momento: newMoment,
+        grammi: grams,
+        macroCalcolate,
+        per100g: per100gRef,
+        note: noteInput.value || ''
+      };
+
+      // Replace in appState
+      const mealIndex = appState.meals.findIndex(m => m.id === meal.id);
+      if (mealIndex !== -1) {
+        appState.meals[mealIndex] = updatedMeal;
+      }
+
+      await saveMealEntries(appState.meals);
+      closeModal();
+      renderNutritionViewPage();
+      showToast('Pasto modificato.');
+    });
+
+    container.querySelector('#cancelEditMeal').addEventListener('click', closeModal);
+
+    gramsInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        container.querySelector('#confirmEditMeal').click();
+      }
+    });
+  });
+}
+
+function editCustomFoodModal(foodId) {
+  const food = appState.userFoods.find(f => f.id === foodId);
+  if (!food) {
+    reportError('Alimento non trovato');
+    return;
+  }
+
+  const html = renderUserFoodForm(food);
+  showModal(html, container => {
+    bindUserFoodFormEvents(container, {
+      onSave: async data => {
+        if (!data.nome) {
+          reportError('Il nome dell alimento è obbligatorio.');
+          return;
+        }
+
+        const updatedFood = { ...food, ...data };
+        appState.userFoods = appState.userFoods.map(item => item.id === foodId ? updatedFood : item);
+        await saveUserFoods(appState.userFoods);
+        closeModal();
+        renderNutritionViewPage();
+        showToast('Alimento modificato.');
+      },
+      onCancel: closeModal
     });
   });
 }
@@ -666,11 +1260,22 @@ function editUserFood(id) {
 }
 
 async function deleteUserFood(id) {
-  if (!confirm('Eliminare questo alimento personalizzato?')) return;
+  if (!(await showConfirm('Eliminare questo alimento personalizzato?', { confirmLabel: 'Elimina', danger: true }))) return;
+  const removed = appState.userFoods.find(item => item.id === id);
   appState.userFoods = appState.userFoods.filter(item => item.id !== id);
   await saveUserFoods(appState.userFoods);
   renderFoodsView();
-  showToast('Alimento eliminato.');
+  showToast('Alimento eliminato', {
+    type: 'success',
+    action: removed ? {
+      label: 'Annulla',
+      onClick: async () => {
+        appState.userFoods.push(removed);
+        await saveUserFoods(appState.userFoods);
+        renderFoodsView();
+      }
+    } : null
+  });
 }
 
 function openRecipeForm(existingRecipe = null) {
@@ -712,11 +1317,21 @@ async function editRecipe(id) {
 }
 
 async function deleteRecipeConfirm(id) {
-  if (!confirm('Eliminare questa ricetta?')) return;
+  if (!(await showConfirm('Eliminare questa ricetta?', { confirmLabel: 'Elimina', danger: true }))) return;
   try {
+    const removed = await loadRecipeById(id);
     await deleteRecipe(id);
     renderFoodsView();
-    showToast('Ricetta eliminata.');
+    showToast('Ricetta eliminata', {
+      type: 'success',
+      action: removed ? {
+        label: 'Annulla',
+        onClick: async () => {
+          await saveRecipe(removed);
+          renderFoodsView();
+        }
+      } : null
+    });
   } catch (error) {
     reportError('Errore nell\'eliminazione della ricetta');
   }
@@ -731,8 +1346,8 @@ async function openAddRecipeAsMeal(recipeId) {
 
   const html = `
     <div style="min-width: 320px;">
-      <h2>${recipe.nome}</h2>
-      <p class="small-muted">${recipe.descrizione || ''}</p>
+      <h2>${escapeHtml(recipe.nome)}</h2>
+      <p class="small-muted">${escapeHtml(recipe.descrizione || '')}</p>
 
       <label style="display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 1.5rem;">
         <span class="label-text">Momento del pasto</span>
@@ -845,157 +1460,11 @@ async function openAddRecipeAsMeal(recipeId) {
   });
 }
 
-function openPhotoImport() {
-  const input = document.createElement('input');
-  input.type = 'file';
-  input.accept = 'image/*';
-  input.addEventListener('change', async event => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-    closeModal();
-    try {
-      showToast('Analizzo l’immagine...');
-      const result = await analyzePhoto(file);
-      openPhotoAnalysis(result.items);
-    } catch (error) {
-      reportError('Analisi foto non disponibile, prova inserimento manuale.');
-    }
-  });
-  input.click();
-}
-
-function openPhotoAnalysis(items) {
-  const html = renderPhotoAnalysis(items);
-  showModal(html, container => {
-    bindPhotoAnalysisEvents(container, {
-      onConfirm: async selectedItems => {
-        const enabled = selectedItems.filter(item => item.enabled && item.estimateGrams > 0);
-        if (!enabled.length) {
-          reportError('Seleziona almeno un elemento da aggiungere.');
-          return;
-        }
-        const entries = enabled.map(item => ({
-          id: crypto.randomUUID(),
-          userId: appState.userProfile.id,
-          data: appState.currentDate,
-          momento: 'altro',
-          foodRef: { id: `photo-${item.index}-${Date.now()}`, source: 'USER_CUSTOM', name: item.name },
-          grammi: item.estimateGrams,
-          macroCalcolate: {
-            kcal: item.macro.kcal,
-            proteine: item.macro.proteine,
-            carboidrati: item.macro.carboidrati,
-            grassi: item.macro.grassi,
-            zuccheri: item.macro.zuccheri,
-            fibra: item.macro.fibra || 0
-          },
-          origin: 'photo_ai_guess',
-          note: 'Stimato da immagine'
-        }));
-        appState.meals.push(...entries);
-        await saveMealEntries(entries);
-        closeModal();
-        renderCurrentView();
-        showToast('Alimenti aggiunti dalla foto. Verifica sempre le quantità.');
-      },
-      onCancel: closeModal
-    });
-  });
-}
-
-function openEstimatedFoodForm() {
-  const html = renderEstimatedFoodForm();
-  showModal(html, container => {
-    bindEstimatedFoodFormEvents(container, {
-      onConfirm: async estimatedFood => {
-        // Chiedi il momento del pasto
-        const momento = await promptMealMoment();
-        if (!momento) return;
-
-        const entry = {
-          id: crypto.randomUUID(),
-          userId: appState.userProfile.id,
-          data: appState.currentDate,
-          momento,
-          foodRef: {
-            id: `estimated-${Date.now()}`,
-            source: 'TYPICAL_ESTIMATE',
-            name: estimatedFood.nome,
-            categoria: estimatedFood.categoria
-          },
-          grammi: estimatedFood.grammi,
-          macroCalcolate: estimatedFood.macroCalcolate,
-          origin: 'estimated_typical_value',
-          note: `Stima categoria "${estimatedFood.categoria}"`
-        };
-
-        appState.meals.push(entry);
-        await saveMealEntries([entry]);
-        trackFoodUsage(entry.foodRef, entry.grammi);
-        closeModal();
-        renderCurrentView();
-        showToast('Alimento stimato aggiunto. Usa dati precisi quando disponibili.');
-      }
-    });
-  });
-}
-
-function promptMealMoment() {
-  return new Promise(resolve => {
-    const html = `
-      <div class="modal-content">
-        <h2>Quando?</h2>
-        <label>Momento del pasto
-          <select id="mealMomentSelect">
-            <option value="colazione">Colazione</option>
-            <option value="spuntino">Spuntino</option>
-            <option value="pranzo">Pranzo</option>
-            <option value="merenda">Merenda</option>
-            <option value="cena">Cena</option>
-            <option value="altro" selected>Altro</option>
-          </select>
-        </label>
-        <button id="confirmMoment" class="primary">Conferma</button>
-        <button id="cancelMoment" class="secondary">Annulla</button>
-      </div>
-    `;
-
-    showModal(html, container => {
-      container.querySelector('#confirmMoment').addEventListener('click', () => {
-        const momento = container.querySelector('#mealMomentSelect').value;
-        closeModal();
-        resolve(momento);
-      });
-      container.querySelector('#cancelMoment').addEventListener('click', () => {
-        closeModal();
-        resolve(null);
-      });
-    });
-  });
-}
-
-function showModal(contentHtml, bind) {
-  const fragment = modalTemplate.content.cloneNode(true);
-  const backdrop = fragment.querySelector('.modal-overlay');
-  const body = fragment.querySelector('.modal-body');
-  body.innerHTML = contentHtml;
-  const closeButton = fragment.querySelector('.modal-close');
-  function closeHandler() {
-    backdrop.remove();
-  }
-  closeButton.addEventListener('click', closeHandler);
-  backdrop.addEventListener('click', event => {
-    if (event.target === backdrop) closeHandler();
-  });
-  const appendedNode = document.body.appendChild(fragment);
-  const modalRoot = appendedNode.querySelector('.modal-overlay') || document.body.querySelector('.modal-overlay:last-of-type');
-  if (bind && modalRoot) bind(modalRoot);
-}
-
-function closeModal() {
-  const backdrop = document.querySelector('.modal-overlay');
-  if (backdrop) backdrop.remove();
-}
+// showModal/closeModal estratti in ./ui/modal.js; restano esposti come globali
+// per i moduli che li usano via window (estimationEngine, composedMealWizard).
+window.showModal = showModal;
+window.closeModal = closeModal;
+window.appState = appState;
 
 function attachBottomNav() {
   bottomNav.addEventListener('click', event => {
@@ -1006,6 +1475,16 @@ function attachBottomNav() {
       appState.currentView = view;
       renderCurrentView();
     }
+  // Swipe gesture support for tab navigation
+  const mainContent = document.getElementById('mainContent');
+  const navButtons = Array.from(document.querySelectorAll('.nav-button'));
+  
+  if (mainContent && navButtons.length > 0) {
+    initSwipeNavigation(mainContent, navButtons, (view) => {
+      appState.currentView = view;
+      renderCurrentView();
+    });
+  }
   });
 }
 
@@ -1017,13 +1496,6 @@ function attachInstallButton() {
       triggerInstallPrompt();
     });
   }
-}
-
-function attachSWUpdateListener() {
-  window.addEventListener("sw-update-available", () => {
-    showToast("🔄 Nuova versione disponibile. Ricarica per gli aggiornamenti.", 5000);
-    console.log("🔄 SW update available — user can reload");
-  });
 }
 
 function openBodyCompBaselineForm(existingBaselines = []) {
@@ -1186,11 +1658,11 @@ async function renderActivitiesViewPage() {
       onAddStrength: () => showAddStrengthModal(async (formData) => {
         try {
           await saveStrengthSession(formData);
-          showToast('✅ Allenamento pesi salvato.');
+          showToast('Allenamento pesi salvato.', { type: 'success' });
           renderActivitiesViewPage();
         } catch (err) {
           console.error('Errore salvataggio allenamento:', err);
-          showToast('❌ Errore nel salvataggio. Riprova.', 4000);
+          showToast('Errore nel salvataggio. Riprova.', { duration: 4000, type: 'error' });
         }
       }),
       onEditStrength: (id) => {
@@ -1199,7 +1671,7 @@ async function renderActivitiesViewPage() {
           showEditStrengthModal(session, async (formData) => {
             try {
               await updateStrengthSession(id, formData);
-              showToast('✅ Allenamento pesi aggiornato.');
+              showToast('Allenamento pesi aggiornato.', { type: 'success' });
               renderActivitiesViewPage();
             } catch (err) {
               console.error('Errore aggiornamento allenamento:', err);
@@ -1210,22 +1682,20 @@ async function renderActivitiesViewPage() {
       },
       onDeleteStrength: async (id) => {
         try {
-          await deleteStrengthSession(id);
-          showToast('✅ Allenamento pesi eliminato.');
-          renderActivitiesViewPage();
+          await deleteSessionWithUndo('strength', id, renderActivitiesViewPage);
         } catch (err) {
           console.error('Errore eliminazione allenamento:', err);
-          showToast('❌ Errore nell\'eliminazione. Riprova.', 4000);
+          showToast('Errore nell\'eliminazione. Riprova.', { duration: 4000, type: 'error' });
         }
       },
       onAddCardio: () => showAddCardioModal(async (formData) => {
         try {
           await saveCardioSession(formData);
-          showToast('✅ Sessione cardio salvata.');
+          showToast('Sessione cardio salvata.', { type: 'success' });
           renderActivitiesViewPage();
         } catch (err) {
           console.error('Errore salvataggio cardio:', err);
-          showToast('❌ Errore nel salvataggio. Riprova.', 4000);
+          showToast('Errore nel salvataggio. Riprova.', { duration: 4000, type: 'error' });
         }
       }),
       onEditCardio: (id) => {
@@ -1234,7 +1704,7 @@ async function renderActivitiesViewPage() {
           showEditCardioModal(session, async (formData) => {
             try {
               await updateCardioSession(id, formData);
-              showToast('✅ Sessione cardio aggiornata.');
+              showToast('Sessione cardio aggiornata.', { type: 'success' });
               renderActivitiesViewPage();
             } catch (err) {
               console.error('Errore aggiornamento cardio:', err);
@@ -1245,22 +1715,20 @@ async function renderActivitiesViewPage() {
       },
       onDeleteCardio: async (id) => {
         try {
-          await deleteCardioSession(id);
-          showToast('✅ Sessione cardio eliminata.');
-          renderActivitiesViewPage();
+          await deleteSessionWithUndo('cardio', id, renderActivitiesViewPage);
         } catch (err) {
           console.error('Errore eliminazione cardio:', err);
-          showToast('❌ Errore nell\'eliminazione. Riprova.', 4000);
+          showToast('Errore nell\'eliminazione. Riprova.', { duration: 4000, type: 'error' });
         }
       },
       onAddSteps: () => showAddStepsModal(async (formData) => {
         try {
           await saveDailySteps(formData);
-          showToast('✅ Passi salvati.');
+          showToast('Passi salvati.', { type: 'success' });
           renderActivitiesViewPage();
         } catch (err) {
           console.error('Errore salvataggio passi:', err);
-          showToast('❌ Errore nel salvataggio. Riprova.', 4000);
+          showToast('Errore nel salvataggio. Riprova.', { duration: 4000, type: 'error' });
         }
       }),
       onEditSteps: (date) => {
@@ -1268,7 +1736,7 @@ async function renderActivitiesViewPage() {
         showAddStepsModal(async (formData) => {
           try {
             await saveDailySteps(formData);
-            showToast('✅ Passi aggiornati.');
+            showToast('Passi aggiornati.', { type: 'success' });
             renderActivitiesViewPage();
           } catch (err) {
             console.error('Errore aggiornamento passi:', err);
@@ -1307,7 +1775,7 @@ async function renderActivitiesViewPage() {
                 }
 
                 if (imported === 0) {
-                  showToast('❌ Nessun record importato.', 4000);
+                  showToast('Nessun record importato.', { duration: 4000, type: 'error' });
                   return { success: false, error: 'Nessun record importato con successo' };
                 }
 
@@ -1329,7 +1797,7 @@ async function renderActivitiesViewPage() {
           }, { PROVIDERS, getAvailableProviders });
         } catch (err) {
           console.error('Errore apertura provider selection:', err);
-          showToast('❌ Errore. Riprova.', 4000);
+          showToast('Errore. Riprova.', { duration: 4000, type: 'error' });
         }
       },
       onDisconnectProvider: async () => {
@@ -1337,11 +1805,11 @@ async function renderActivitiesViewPage() {
           clearConnectedProvider();
           localStorage.removeItem('activitySyncLastTime');
           localStorage.removeItem('activitySyncDaysCount');
-          showToast('✅ Provider scollegato.');
+          showToast('Provider scollegato.', { type: 'success' });
           renderActivitiesViewPage();
         } catch (err) {
           console.error('Errore disconnessione provider:', err);
-          showToast('❌ Errore. Riprova.', 4000);
+          showToast('Errore. Riprova.', { duration: 4000, type: 'error' });
         }
       }
     });
@@ -1361,19 +1829,34 @@ function renderSettingsView() {
   });
 }
 
+async function renderStatsViewPage() {
+  try {
+    const [allMeals, dailyWeights] = await Promise.all([
+      loadAllMeals(),
+      loadDailyWeights()
+    ]);
+    mainContent.innerHTML = renderStatsView(allMeals, dailyWeights, appState.nutritionTargets, appState.userProfile);
+    bindStatsViewEvents(mainContent, {});
+  } catch (err) {
+    console.error('Errore nel caricamento statistiche:', err);
+    mainContent.innerHTML = '<div class="section card"><p>Errore nel caricamento delle statistiche.</p></div>';
+  }
+}
+
 function populateBottomNav() {
   const navButtons = [
-    { view: 'dashboard', label: '📊 Dashboard', emoji: '📊' },
-    { view: 'week', label: '📅 Settimana', emoji: '📅' },
-    { view: 'activities', label: '💪 Allenamenti', emoji: '💪' },
-    { view: 'search', label: '🔍 Ricerca', emoji: '🔍' },
-    { view: 'weight', label: '⚖️ Perdita Peso', emoji: '⚖️' },
-    { view: 'settings', label: '⚙️ Impostazioni', emoji: '⚙️' }
+    { view: 'dashboard', label: 'Home', emoji: '🏠' },
+    { view: 'nutrition', label: 'Pasti', emoji: '🍽️' },
+    { view: 'physics', label: 'Attività', emoji: '💪' },
+    { view: 'stats', label: 'Trend', emoji: '📈' },
+    { view: 'settings', label: 'Altro', emoji: '⚙️' }
   ];
 
+  // Etichetta testuale sotto l'emoji: scopribilità senza dover indovinare le icone
   bottomNav.innerHTML = navButtons.map(btn => `
     <button class="nav-button" data-view="${btn.view}" title="${btn.label}" aria-label="${btn.label}">
-      ${btn.emoji}
+      <span class="nav-emoji" aria-hidden="true">${btn.emoji}</span>
+      <span class="nav-label">${btn.label}</span>
     </button>
   `).join('');
 }
@@ -1387,24 +1870,78 @@ export async function init() {
   populateBottomNav();
   attachBottomNav();
   attachInstallButton();
-  attachSWUpdateListener();
   await loadState();
   renderCurrentView();
 }
 
-function openQuickAdd() {
+function openCustomFoodFormWithMoment(moment) {
+  const html = renderUserFoodForm(null);
+  showModal(html, container => {
+    bindUserFoodFormEvents(container, {
+      onSave: async data => {
+        if (!data.nome) {
+          reportError('Il nome dell\'alimento è obbligatorio.');
+          return;
+        }
+        const food = { ...data, id: crypto.randomUUID(), source: 'USER_CUSTOM', createdByUserId: appState.userProfile.id };
+        appState.userFoods.push(food);
+        await saveUserFoods(appState.userFoods);
+
+        closeModal();
+        openQuickAddWithFoodAndMoment(
+          { id: food.id, source: food.source, name: food.nome },
+          100,
+          moment
+        );
+        showToast('Alimento personalizzato salvato.');
+      },
+      onCancel: closeModal
+    });
+  });
+}
+
+function openQuickAddWithMoment(moment) {
+  // Apre il modale di aggiunta rapida con il momento preselezionato
   const html = `
     <div style="min-width: 320px;">
-      <h1 style="margin-top: 0; text-align: center;">+ Aggiungi Pasto</h1>
-      
-      <div class="quick-add-tabs" style="display: flex; gap: 0.5rem; margin-bottom: 1.5rem; border-bottom: 2px solid var(--glass-border); padding-bottom: 0;">
-        <button class="tab-btn active" data-tab="custom" style="flex: 1; padding: 0.75rem; background: none; border: none; border-bottom: 3px solid var(--accent-cyan); cursor: pointer; color: var(--text-primary); font-weight: 600;">📝 Personalizzato</button>
-        <button class="tab-btn" data-tab="estimate" style="flex: 1; padding: 0.75rem; background: none; border: none; border-bottom: 3px solid transparent; cursor: pointer; color: var(--text-muted); font-weight: 600;">📊 Stima</button>
-        <button class="tab-btn" data-tab="recent" style="flex: 1; padding: 0.75rem; background: none; border: none; border-bottom: 3px solid transparent; cursor: pointer; color: var(--text-muted); font-weight: 600;">⭐ Recenti</button>
+      <h1 style="margin-top: 0; text-align: center;">+ Aggiungi Cibo</h1>
+      <p style="text-align: center; color: var(--muted); margin-bottom: 1.5rem;">
+        Momento: <strong>${moment.charAt(0).toUpperCase() + moment.slice(1)}</strong>
+      </p>
+
+      <div class="quick-add-tabs" style="display: flex; gap: 0.25rem; margin-bottom: 1.5rem; border-bottom: 2px solid var(--glass-border); padding-bottom: 0; flex-wrap: wrap;">
+        <button class="tab-btn active" data-tab="search" style="flex: 1; min-width: 70px; padding: 0.75rem; background: none; border: none; border-bottom: 3px solid var(--accent-cyan); cursor: pointer; color: var(--text-primary); font-weight: 600; font-size: 0.9rem;">🔍 Cerca</button>
+        <button class="tab-btn" data-tab="composed" style="flex: 1; min-width: 70px; padding: 0.75rem; background: none; border: none; border-bottom: 3px solid transparent; cursor: pointer; color: var(--text-muted); font-weight: 600; font-size: 0.9rem;">🍝 Composto</button>
+        <button class="tab-btn" data-tab="custom" style="flex: 1; min-width: 70px; padding: 0.75rem; background: none; border: none; border-bottom: 3px solid transparent; cursor: pointer; color: var(--text-muted); font-weight: 600; font-size: 0.9rem;">📝 Pers.</button>
+        <button class="tab-btn" data-tab="estimate" style="flex: 1; min-width: 70px; padding: 0.75rem; background: none; border: none; border-bottom: 3px solid transparent; cursor: pointer; color: var(--text-muted); font-weight: 600; font-size: 0.9rem;">📊 Stima</button>
+        <button class="tab-btn" data-tab="recent" style="flex: 1; min-width: 70px; padding: 0.75rem; background: none; border: none; border-bottom: 3px solid transparent; cursor: pointer; color: var(--text-muted); font-weight: 600; font-size: 0.9rem;">⭐ Rec.</button>
+      </div>
+
+      <!-- TAB: CERCA -->
+      <div class="tab-content active" data-tab="search" style="display: block;">
+        <div style="margin-bottom: 1rem;">
+          <div style="display: flex; gap: 0.5rem; align-items: center;">
+            <input id="quickSearchInput" type="text" placeholder="Cerca alimenti (es: pollo, pasta, latte)" style="flex: 1; padding: 0.75rem; border-radius: 0.5rem; border: 1px solid var(--glass-border);">
+            ${voiceButtonHtml('quickVoiceBtn')}
+          </div>
+          <div style="margin-top: 0.5rem; font-size: 0.85rem; color: var(--text-muted);">
+            <span id="quickSearchHint">Scrivi per cercare nei tuoi alimenti e nel database</span>
+          </div>
+        </div>
+        <div id="quickSearchResults" style="max-height: 400px; overflow-y: auto; display: flex; flex-direction: column; gap: 0.5rem;"></div>
+        <p id="quickSearchEmpty" style="text-align: center; color: var(--text-muted); padding: 2rem 0;">Nessun risultato. Prova a cercare o crea un nuovo alimento.</p>
+      </div>
+
+      <!-- TAB: PIATTO COMPOSTO -->
+      <div class="tab-content" data-tab="composed" style="display: none;">
+        <div style="text-align: center; padding: 2rem 0;">
+          <p style="margin-bottom: 1.5rem; color: var(--text-muted);">Decomponici un piatto nei suoi componenti (pasta al tonno, insalata di riso, ecc.)</p>
+          <button id="openComposedMealBtn" class="primary" style="width: 100%; padding: 0.875rem;">🍝 Nuovo Piatto Composto</button>
+        </div>
       </div>
 
       <!-- TAB: PERSONALIZZATO -->
-      <div class="tab-content active" data-tab="custom" style="display: block;">
+      <div class="tab-content" data-tab="custom" style="display: none;">
         <div style="text-align: center; padding: 2rem 0;">
           <p style="margin-bottom: 1.5rem; color: var(--text-muted);">Crea un alimento personalizzato con macro ogni 100g</p>
           <button id="openCustomFoodFormBtn" class="primary" style="width: 100%; padding: 0.875rem;">+ Nuovo Alimento Personalizzato</button>
@@ -1413,22 +1950,11 @@ function openQuickAdd() {
 
       <!-- TAB: STIMA -->
       <div class="tab-content" data-tab="estimate" style="display: none;">
-        <label>Categoria piatto</label>
-        <select id="quickEstimateCategory" style="width: 100%; padding: 0.75rem; margin-bottom: 1rem;">
-          <option value="">Seleziona...</option>
-          <option value="pasta">🍝 Pasta</option>
-          <option value="riso">🍚 Riso</option>
-          <option value="carne">🥩 Carne</option>
-          <option value="pesce">🐟 Pesce</option>
-          <option value="verdura">🥬 Verdura</option>
-          <option value="frutta">🍎 Frutta</option>
-          <option value="latticini">🧀 Latticini</option>
-        </select>
-        
-        <label>Grammi</label>
-        <input id="quickEstimateGrams" type="number" min="1" max="1000" value="100" style="width: 100%; padding: 0.75rem; margin-bottom: 1.5rem;">
-        
-        <button id="quickEstimateBtn" class="primary" style="width: 100%;">Stima e Aggiungi</button>
+        <div style="text-align: center; padding: 2rem 0;">
+          <p style="margin-bottom: 1.5rem; color: var(--text-muted);">Seleziona il tipo, il taglio, lo stato e aggiungi condimenti.</p>
+          <p style="margin-bottom: 1.5rem; font-size: 0.85rem; color: var(--text-muted);">Es: Pollo Petto Cotto con olio</p>
+          <button id="openEstimationWizardBtn" class="primary" style="width: 100%; padding: 0.875rem;">📊 Avvia Stima Precisa</button>
+        </div>
       </div>
 
       <!-- TAB: RECENTI -->
@@ -1454,34 +1980,132 @@ function openQuickAdd() {
       });
     });
 
+    // Search functionality
+    const searchInput = container.querySelector('#quickSearchInput');
+    const searchResults = container.querySelector('#quickSearchResults');
+    const searchEmpty = container.querySelector('#quickSearchEmpty');
+    const searchHint = container.querySelector('#quickSearchHint');
+    let searchTimeout;
+
+    searchInput?.addEventListener('input', async (e) => {
+      clearTimeout(searchTimeout);
+      const query = e.target.value.trim();
+
+      if (query.length < 2) {
+        searchResults.innerHTML = '';
+        searchEmpty.style.display = 'block';
+        searchHint.textContent = query.length === 0 ? 'Scrivi per cercare nei tuoi alimenti e nel database' : 'Digita almeno 2 caratteri';
+        return;
+      }
+
+      searchEmpty.style.display = 'none';
+      searchHint.textContent = '';
+      searchResults.innerHTML = '<div style="text-align: center; padding: 1rem; color: var(--text-muted);">Cercando...</div>';
+
+      searchTimeout = setTimeout(async () => {
+        const results = await performQuickSearch(query);
+        renderQuickSearchResults(results, container, moment);
+      }, 300);
+    });
+
     // Custom food button
     const openCustomBtn = container.querySelector('#openCustomFoodFormBtn');
     openCustomBtn?.addEventListener('click', () => {
       closeModal();
-      openCustomFoodForm();
+      openCustomFoodFormWithMoment(moment);
     });
 
-    // Estimate button
-    container.querySelector('#quickEstimateBtn')?.addEventListener('click', async () => {
-      const category = container.querySelector('#quickEstimateCategory').value;
-      const grams = Number(container.querySelector('#quickEstimateGrams').value);
-      
-      if (!category || grams < 1) {
-        reportError('Seleziona categoria e grammi');
-        return;
-      }
-
+    // Composed meal button
+    const openComposedBtn = container.querySelector('#openComposedMealBtn');
+    openComposedBtn?.addEventListener('click', () => {
       closeModal();
-      openEstimatedFoodForm(category, grams);
+      openComposedMealWizard(moment, (entry) => {
+        addMealAndClose(entry);
+      });
+    });
+
+    // Estimation wizard button
+    const openEstimationBtn = container.querySelector('#openEstimationWizardBtn');
+    openEstimationBtn?.addEventListener('click', () => {
+      closeModal();
+      openEstimationWizard(moment, (estimatedEntry) => {
+        addMealAndClose(estimatedEntry);
+      });
     });
 
     // Recent foods
-    loadRecentFoods(container);
+    loadRecentFoodsWithMoment(container, moment);
+
+    // Dettatura vocale per la ricerca
+    wireVoiceButton(container.querySelector('#quickVoiceBtn'), searchInput);
+
+    // Focus search input
+    searchInput?.focus();
   });
 }
 
-function loadRecentFoods(container) {
-  // Usa recentFoodsTracker per accesso veloce ai recenti
+async function performQuickSearch(query) {
+  const normalizedQuery = query.toLowerCase();
+
+  // Search user foods first
+  const userFoodsResults = (appState.userFoods || [])
+    .filter(f => f.nome.toLowerCase().includes(normalizedQuery) || (f.brand && f.brand.toLowerCase().includes(normalizedQuery)))
+    .map(f => ({ ...f, name: f.nome, source: 'user', priority: 2 }))
+    .slice(0, 5);
+
+  // Then search database via API
+  let dbResults = [];
+  try {
+    const dbFoods = await searchFoods(query);
+    dbResults = (dbFoods || [])
+      .map(f => ({ ...f, name: f.nome, source: 'database', priority: 1 }))
+      .slice(0, 7);
+  } catch (e) {
+    console.warn('Search error:', e);
+  }
+
+  // Combine and sort
+  return [...userFoodsResults, ...dbResults];
+}
+
+function renderQuickSearchResults(results, container, moment) {
+  const searchResults = container.querySelector('#quickSearchResults');
+  const searchEmpty = container.querySelector('#quickSearchEmpty');
+
+  if (!results || results.length === 0) {
+    searchResults.innerHTML = '';
+    searchEmpty.style.display = 'block';
+    return;
+  }
+
+  searchEmpty.style.display = 'none';
+  searchResults.innerHTML = results.map((food, idx) => {
+    const badge = food.source === 'user' ? '⭐' : '📦';
+    const brand = food.brand ? ` · ${escapeHtml(food.brand)}` : '';
+    const displayName = escapeHtml(food.name || food.nome);
+    return `
+      <button class="secondary" data-search-idx="${idx}" style="text-align: left; padding: 0.75rem; display: flex; justify-content: space-between; align-items: center; border: 1px solid var(--glass-border);">
+        <div>
+          <div><strong>${badge} ${displayName}</strong></div>
+          <div style="font-size: 0.85rem; color: var(--text-muted);">${food.porzioneBase}${brand}</div>
+          ${food.per100g?.kcal ? `<div style="font-size: 0.75rem; color: var(--text-muted);">${Math.round(food.per100g.kcal)} kcal/100g</div>` : ''}
+        </div>
+        <div style="font-size: 1.25rem;">→</div>
+      </button>
+    `;
+  }).join('');
+
+  searchResults.querySelectorAll('button').forEach((btn, idx) => {
+    btn.addEventListener('click', () => {
+      const food = results[idx];
+      closeModal();
+      openQuickAddWithFoodAndMoment(food, 100, moment);
+    });
+  });
+}
+
+function loadRecentFoodsWithMoment(container, moment) {
+  // Carica cibi recenti e aggiunge al momento specificato
   const recentList = container.querySelector('#quickRecentList');
   const recentEmpty = container.querySelector('#quickRecentEmpty');
 
@@ -1495,7 +2119,7 @@ function loadRecentFoods(container) {
   recentList.innerHTML = recents.slice(0, 10).map((recent, idx) => `
     <button class="secondary" style="text-align: left; padding: 0.75rem; display: flex; justify-content: space-between; align-items: center;">
       <div>
-        <div><strong>${recent.foodRef.name}</strong></div>
+        <div><strong>${escapeHtml(recent.foodRef.name)}</strong></div>
         <div style="font-size: 0.85rem; color: var(--text-muted);">${recent.grammi}g</div>
       </div>
       <div style="text-align: right; font-size: 0.85rem; color: var(--text-muted);">
@@ -1509,24 +2133,97 @@ function loadRecentFoods(container) {
     btn.addEventListener('click', () => {
       const recent = recents[idx];
       closeModal();
-      openQuickAddWithFood(recent.foodRef, recent.grammi);
+      openQuickAddWithFoodAndMoment(recent.foodRef, recent.grammi, moment);
     });
   });
 }
 
-function showWeightUpdateModal() {
+function openQuickAddWithFoodAndMoment(foodRef, suggestedGrams, moment) {
   const html = `
-    <div style="min-width: 300px;">
-      <h2 style="margin-top: 0;">⚖️ Aggiorna Peso</h2>
+    <div style="min-width: 320px;">
+      <h2 style="margin-top: 0;">${escapeHtml(foodRef.name)}</h2>
+      <div class="card" style="margin-bottom: 1.5rem; padding: 1rem; background: var(--glass-secondary);">
+        <div style="margin-bottom: 1rem; padding: 0.75rem; background: var(--glass-tertiary); border-radius: 8px; text-align: center;">
+          <strong style="color: var(--primary);">${moment.charAt(0).toUpperCase() + moment.slice(1)}</strong>
+        </div>
+        <label>Grammi
+          <input id="foodGramsInput" type="number" min="1" max="3000" value="${suggestedGrams}" style="width: 100%; padding: 0.75rem; margin-top: 0.5rem; font-size: 16px;">
+        </label>
+      </div>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
+        <button id="confirmRecentFood" class="primary" style="width: 100%;">Aggiungi</button>
+        <button id="cancelRecentFood" class="secondary" style="width: 100%;">Annulla</button>
+      </div>
+    </div>
+  `;
+
+  showModal(html, container => {
+    // Auto-focus on grammi
+    container.querySelector('#foodGramsInput').focus();
+    container.querySelector('#foodGramsInput').select();
+
+    container.querySelector('#confirmRecentFood').addEventListener('click', async () => {
+      const grams = parseFloat(container.querySelector('#foodGramsInput').value);
+      if (!grams || grams < 1) {
+        reportError('Inserisci grammi validi');
+        return;
+      }
+
+      const entry = {
+        data: appState.currentDate,
+        momento: moment,
+        foodRef,
+        grammi: grams,
+        macroCalcolate: calculateMacrosForAmount(foodRef, grams)
+      };
+
+      await addMealAndClose(entry);
+    });
+
+    container.querySelector('#cancelRecentFood').addEventListener('click', closeModal);
+  });
+}
+
+async function showWeightUpdateModal() {
+  // Carica l'ultimo peso per verificare se è passata una settimana
+  const allWeights = await loadDailyWeights();
+  const lastWeight = allWeights && allWeights.length > 0
+    ? allWeights.sort((a, b) => new Date(b.data) - new Date(a.data))[0]
+    : null;
+
+  // Controlla se è passata una settimana
+  const lastBodyCompDate = lastWeight?.data ? new Date(lastWeight.data) : null;
+  const today = new Date(appState.currentDate);
+  const daysSinceLastBodyComp = lastBodyCompDate
+    ? Math.floor((today - lastBodyCompDate) / (1000 * 60 * 60 * 24))
+    : 999;
+  const shouldAskBodyFat = !lastWeight || daysSinceLastBodyComp >= 7;
+
+  const html = `
+    <div style="min-width: 320px;">
+      <h2 style="margin-top: 0;">⚖️ Registra Peso</h2>
+
+      <div style="margin-bottom: 1.5rem;">
+        <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Data</label>
+        <input id="weightDateInput" type="date" value="${appState.currentDate}" style="width: 100%; padding: 0.75rem; border: 1px solid var(--glass-border); border-radius: 8px; background: var(--glass-secondary);">
+      </div>
 
       <div style="margin-bottom: 1.5rem;">
         <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Peso (kg)</label>
-        <input id="weightInput" type="number" step="0.1" min="30" max="200" style="width: 100%; padding: 0.75rem; border: 1px solid var(--glass-border); border-radius: 8px; background: var(--glass-secondary);" placeholder="es. 75.5">
+        <input id="weightInput" type="number" step="0.1" min="30" max="200" value="${lastWeight?.pesoKg || ''}" style="width: 100%; padding: 0.75rem; border: 1px solid var(--glass-border); border-radius: 8px; background: var(--glass-secondary);" placeholder="es. 75.5">
       </div>
+
+      ${shouldAskBodyFat ? `
+        <div style="margin-bottom: 1.5rem; padding: 1rem; background: rgba(168, 85, 247, 0.1); border-left: 3px solid #a855f7; border-radius: 8px;">
+          <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Body Fat % ${!lastWeight ? '(RICHIESTO - Prima calibrazione)' : ''}</label>
+          <input id="bodyFatInput" type="number" step="0.1" min="5" max="95" value="${lastWeight?.bodyFatPercent || appState.userProfile?.bodyFatPercent || 20}" style="width: 100%; padding: 0.75rem; border: 1px solid var(--glass-border); border-radius: 8px; background: var(--glass-secondary);" placeholder="es. 22.5">
+          <div class="small-muted" style="margin-top: 0.5rem; font-size: 0.85rem;">Stima da DEXA, BIA o plicometria</div>
+        </div>
+      ` : ''}
 
       <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
         <button id="cancelWeightBtn" class="secondary" style="padding: 0.75rem;">Annulla</button>
-        <button id="saveWeightBtn" class="primary" style="padding: 0.75rem;">Salva Peso</button>
+        <button id="saveWeightBtn" class="primary" style="padding: 0.75rem;">Salva</button>
       </div>
     </div>
   `;
@@ -1536,6 +2233,8 @@ function showWeightUpdateModal() {
   const cancelBtn = document.querySelector('#cancelWeightBtn');
   const saveBtn = document.querySelector('#saveWeightBtn');
   const weightInput = document.querySelector('#weightInput');
+  const dateInput = document.querySelector('#weightDateInput');
+  const bodyFatInput = document.querySelector('#bodyFatInput');
 
   if (cancelBtn) {
     cancelBtn.addEventListener('click', closeModal);
@@ -1544,21 +2243,41 @@ function showWeightUpdateModal() {
   if (saveBtn) {
     saveBtn.addEventListener('click', async () => {
       const weight = parseFloat(weightInput.value);
+      const date = dateInput.value;
+
       if (!weight || weight < 30 || weight > 200) {
-        showToast('❌ Inserisci un peso valido (30-200 kg)', 3000);
+        reportError('Inserisci un peso valido (30-200 kg)');
         return;
       }
 
-      try {
-        const today = appState.currentDate;
-        const newWeight = { data: today, pesoKg: weight };
-        await saveDailyWeight(newWeight);
-        closeModal();
-        renderCurrentView();
-        showToast('✅ Peso registrato!');
-      } catch (err) {
-        console.error('Errore salvataggio peso:', err);
-        showToast('❌ Errore nel salvataggio', 3000);
+      if (shouldAskBodyFat) {
+        const bodyFat = parseFloat(bodyFatInput.value);
+        if (!bodyFat || bodyFat < 5 || bodyFat > 95) {
+          reportError('Inserisci una body fat % valida (5-95%)');
+          return;
+        }
+
+        try {
+          const newWeight = { data: date, pesoKg: weight, bodyFatPercent: bodyFat };
+          await saveDailyWeight(newWeight);
+          closeModal();
+          renderCurrentView();
+          showToast(`✅ Peso ${weight}kg e Body Fat ${bodyFat}% registrati!`);
+        } catch (err) {
+          console.error('Errore salvataggio peso:', err);
+          reportError('Errore nel salvataggio');
+        }
+      } else {
+        try {
+          const newWeight = { data: date, pesoKg: weight, bodyFatPercent: lastWeight?.bodyFatPercent };
+          await saveDailyWeight(newWeight);
+          closeModal();
+          renderCurrentView();
+          showToast(`✅ Peso ${weight}kg registrato!`);
+        } catch (err) {
+          console.error('Errore salvataggio peso:', err);
+          reportError('Errore nel salvataggio');
+        }
       }
     });
   }
@@ -1590,7 +2309,7 @@ async function addMealAndClose(entry) {
 function openQuickAddWithFood(foodRef, suggestedGrams = 100) {
   const html = `
     <div style="min-width: 320px;">
-      <h2 style="margin-top: 0;">${foodRef.name}</h2>
+      <h2 style="margin-top: 0;">${escapeHtml(foodRef.name)}</h2>
       <div class="card" style="margin-bottom: 1.5rem; padding: 1rem; background: var(--glass-secondary);">
         <label>Momento del pasto
           <select id="mealMomentSelect" style="width: 100%; padding: 0.75rem; margin-top: 0.5rem;">

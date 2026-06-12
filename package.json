@@ -1,0 +1,11 @@
+{
+  "name": "conta-calorie",
+  "version": "0.2.0",
+  "private": true,
+  "description": "PWA mobile-first per monitorare calorie, macro e attivit\u00e0 (database CREA)",
+  "scripts": {
+    "start": "node server.cjs",
+    "test": "node --test ./tests/engines.test.mjs"
+  },
+  "type": "module"
+}

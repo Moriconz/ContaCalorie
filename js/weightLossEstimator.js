@@ -139,56 +139,35 @@ export function estimateAdaptiveTDEE(weightHistory = [], dailyBalances = []) {
     };
   }
 
-  // Calcola peso medio delle ultime 3 giorni (smussamento rumore)
+  // Peso medio dei primi/ultimi 3 giorni (smussa il rumore della bilancia)
   const weightSorted = [...weightHistory].sort((a, b) => new Date(a.data) - new Date(b.data));
   const pesoFinale = weightSorted.slice(-3).reduce((sum, w) => sum + w.pesoKg, 0) / 3;
   const pesoIniziale = weightSorted.slice(0, 3).reduce((sum, w) => sum + w.pesoKg, 0) / 3;
   const deltaKg = pesoFinale - pesoIniziale;  // negativo = perdita
 
-  // Calorie totali del periodo
-  const deltaKcalTotal = deltaKg * KCAL_PER_KG_FAT;
-
-  // Media intake - exercise (= deficit netto)
-  const avgNet = getEnergyBalanceSummary(dailyBalances).avgNet;
-
-  // TDEE effettivo: quello che rende coerente il delta peso osservato
-  // avgNet = avgIntake - avgTDEE - avgExercise
-  // avgTDEE = avgIntake - avgExercise - avgNet
-  // Ma è più semplice: il delta peso implicito è stato creato da un deficit totale
-  // Se abbiamo consumato "avgNet" kcal/giorno per N giorni, e il peso è cambiato di deltaKg,
-  // allora: adaptiveTDEE = avgIntake - avgExercise - (deltaKcalTotal / daysUsed)
-  // Cioè: adaptiveTDEE è il TDEE che spiega il comportamento osservato
-
   const daysUsed = dailyBalances.length;
-  const avgIntake = getEnergyBalanceSummary(dailyBalances).avgIntake;
-  const avgExercise = getEnergyBalanceSummary(dailyBalances).avgExpenditure - getEnergyBalanceSummary(dailyBalances).avgIntake;
-  // Ricalcolo più semplice: dalla definizione
-  // avgNet = avgIntake - avgTDEE - avgExercise
-  // Se l'abbiamo calcolato come intakeKcal - totalExpenditure, dove totalExpenditure = tdee + exercise,
-  // allora avgNet = avgIntake - avgTDEE - avgExercise
-  // Per trovare TDEE adattivo, usiamo il delta peso
-  const adaptiveTDEE = Math.round(avgIntake - (deltaKcalTotal / daysUsed) - (getEnergyBalanceSummary(dailyBalances).avgExpenditure - getEnergyBalanceSummary(dailyBalances).avgIntake));
-  // Err, sto confondendo. Semplifichiamo:
-  // Se il deficit netto totale è stato (avgNet * days) e questo ha causato un delta peso di deltaKg,
-  // allora tutto è coerente. Non calcoliamo un nuovo TDEE adattivo, ma usiamo il dato osservato.
-  // In realtà: adaptiveTDEE implica che avgIntake - adaptiveTDEE - avgExercise = avgNet_observed
-  // = (deltaKcalTotal / daysUsed)
-  const tdeeAdaptive = Math.round(getEnergyBalanceSummary(dailyBalances).avgExpenditure - (deltaKcalTotal / daysUsed));
 
-  // Reliability in base ai giorni di dati
+  // Variazione energetica giornaliera implicita dal peso osservato (7700 kcal/kg)
+  const deltaKcalPerDay = (deltaKg * KCAL_PER_KG_FAT) / daysUsed;
+
+  // Medie osservate
+  const avgIntake = dailyBalances.reduce((s, d) => s + (d.intakeKcal || 0), 0) / daysUsed;
+  const avgExercise = dailyBalances.reduce((s, d) => s + (d.exerciseData?.totalExerciseCalories || 0), 0) / daysUsed;
+
+  // Definizione: deltaKcalPerDay = avgIntake - TDEE - avgExercise
+  // → TDEE adattivo (spesa di mantenimento, esclusa l'attività) che spiega i dati reali
+  const tdeeAdaptive = Math.round(avgIntake - avgExercise - deltaKcalPerDay);
+
+  // Affidabilità in base ai giorni di dati
   let reliability = 'low';
   if (daysUsed >= 28) reliability = 'high';
   else if (daysUsed >= 14) reliability = 'medium';
-  else if (daysUsed >= 7) reliability = 'low';
-
-  // Differenza percentuale vs TDEE teorico (calcolato a parte, qui non abbiamo)
-  // Per ora ritorniamo null e lasciamo che app.js calcoli il teorico
 
   return {
     adaptiveTDEE: tdeeAdaptive,
     reliability,
     daysUsed,
-    vsTheoretical: null  // Calcolato esternamente confrontando con getTheoreticalTDEE
+    vsTheoretical: null  // confronto col teorico calcolato esternamente
   };
 }
 

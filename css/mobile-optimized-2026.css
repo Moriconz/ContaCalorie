@@ -1,0 +1,209 @@
+/* ============================================
+   MOBILE-OPTIMIZED UI/UX FOR 2026
+   Based on latest best practices:
+   - Minimalism & focus
+   - Touch-friendly (48x48px minimum)
+   - Better data visualization
+   - Whitespace & breathing room
+   - Accessibility (WCAG AA+)
+   - Performance optimized
+   ============================================ */
+
+:root {
+  /* Spacing System (8px base) */
+  --space-xs: 0.5rem;   /* 8px */
+  --space-sm: 1rem;     /* 16px */
+  --space-md: 1.5rem;   /* 24px */
+  --space-lg: 2rem;     /* 32px */
+  --space-xl: 2.5rem;   /* 40px */
+  --space-2xl: 3rem;    /* 48px */
+
+  /* Typography (mobile-first) */
+  --font-size-xs: 0.75rem;    /* 12px - labels only */
+  --font-size-sm: 0.875rem;   /* 14px - secondary text */
+  --font-size-base: 1rem;     /* 16px - body text */
+  --font-size-lg: 1.125rem;   /* 18px - large body (accessibility) */
+  --font-size-xl: 1.25rem;    /* 20px - headings */
+  --font-size-2xl: 1.5rem;    /* 24px - large headings */
+  --font-size-3xl: 1.875rem;  /* 30px - hero text */
+
+  /* Line heights for readability */
+  --line-height-tight: 1.4;
+  --line-height-normal: 1.5;
+  --line-height-relaxed: 1.75;
+
+  /* Touch target minimums */
+  --touch-target: 48px;
+  --touch-target-sm: 44px;
+}
+
+/* ============================================
+   GLOBAL STYLES
+   ============================================ */
+
+button:not([class]) {
+  min-height: var(--touch-target);
+  padding: var(--space-sm) var(--space-md);
+  border-radius: 12px;
+  transition: all 150ms ease;
+}
+
+input, select, textarea {
+  font-size: var(--font-size-lg);
+  min-height: var(--touch-target-sm);
+  padding: var(--space-sm) var(--space-md);
+}
+
+/* Better focus indicators */
+:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+/* ============================================
+   ACCESSIBILITY
+   ============================================ */
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+@media (prefers-contrast: more) {
+  button {
+    border: 1px solid currentColor;
+  }
+}
+
+/* ============================================
+   PROGRESS INDICATORS
+   ============================================ */
+
+.progress-bar {
+  width: 100%;
+  height: 8px;
+  background: var(--border);
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 1rem;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--primary), var(--accent));
+  border-radius: 4px;
+  transition: width 300ms ease;
+}
+
+/* ============================================
+   MOBILE OPTIMIZATIONS
+   ============================================ */
+
+.page-content {
+  max-width: 600px;
+  margin: 0 auto;
+  padding: 1.25rem 1rem calc(110px + env(safe-area-inset-bottom)) 1rem;
+}
+
+.card {
+  border-radius: var(--radius-xl, 26px);
+  padding: 1.4rem;
+  margin-bottom: 1.25rem;
+}
+
+.nav-button {
+  min-height: 50px;
+}
+
+/* Better list items */
+.list-item {
+  min-height: var(--touch-target);
+  padding: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* ============================================
+   DATA VISUALIZATION
+   ============================================ */
+
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+}
+
+.stat-item {
+  padding: 1rem;
+  background: var(--surface-strong);
+  border-radius: 12px;
+  text-align: center;
+}
+
+.stat-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--primary);
+}
+
+/* ============================================
+   RESPONSIVE
+   ============================================ */
+
+@media (max-width: 640px) {
+  body {
+    font-size: var(--font-size-lg);
+  }
+
+  h1 {
+    font-size: 1.5rem;
+  }
+
+  .stat-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ============================================
+   COLLAPSIBLE SECTIONS (2026 UX)
+   Reduce cognitive load by hiding secondary content
+   ============================================ */
+
+.collapsible-group {
+  margin-bottom: 1.5rem;
+}
+
+[data-toggle="collapsible"] {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  border: none;
+  cursor: pointer;
+  transition: all var(--duration-fast) ease;
+}
+
+[data-toggle="collapsible"]:active {
+  transform: scale(0.98);
+}
+
+.toggle-icon {
+  display: inline-block;
+  transition: transform var(--duration-normal) ease;
+  margin-left: 0.75rem;
+  font-size: 0.8rem;
+  flex-shrink: 0;
+}
+
+.collapsible-content {
+  transition: max-height var(--duration-normal) ease, opacity var(--duration-normal) ease;
+  overflow: hidden;
+}
+
+/* Arrow icon rotation animation */
+[aria-expanded="true"] .toggle-icon {
+  transform: rotate(180deg);
+}

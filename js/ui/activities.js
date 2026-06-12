@@ -3,6 +3,9 @@
   Gestisce: sessioni pesi, sessioni cardio, passi, import, sync provider
 */
 
+import { escapeHtml } from '../utils.js';
+import { showConfirm } from './modal.js';
+
 export function renderActivitiesView(state) {
   const {
     userProfile,
@@ -328,17 +331,17 @@ export function bindActivitiesEvents(container, callbacks) {
 
   // Delete buttons
   container.querySelectorAll('.delete-strength-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
+    btn.addEventListener('click', async () => {
       const sessionTitle = btn.closest('[class*="session"]')?.querySelector('strong')?.textContent || 'questa sessione';
-      if (confirm(`Elimina "${sessionTitle}"?\n\nQuesta azione non può essere annullata.`)) {
+      if (await showConfirm(`Eliminare "${sessionTitle}"?`, { confirmLabel: 'Elimina', danger: true })) {
         callbacks.onDeleteStrength?.(btn.dataset.id);
       }
     });
   });
   container.querySelectorAll('.delete-cardio-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
+    btn.addEventListener('click', async () => {
       const sessionTitle = btn.closest('[class*="session"]')?.querySelector('strong')?.textContent || 'questa sessione';
-      if (confirm(`Elimina "${sessionTitle}"?\n\nQuesta azione non può essere annullata.`)) {
+      if (await showConfirm(`Eliminare "${sessionTitle}"?`, { confirmLabel: 'Elimina', danger: true })) {
         callbacks.onDeleteCardio?.(btn.dataset.id);
       }
     });
@@ -434,6 +437,7 @@ export function showAddStrengthModal(onSave) {
   const modal = document.createElement('div');
   modal.innerHTML = modalHTML;
   document.body.appendChild(modal);
+  document.body.style.overflow = 'hidden';
 
   const form = modal.querySelector('#addStrengthForm');
   const detailedToggle = modal.querySelector('#strengthDetailedMode');
@@ -527,11 +531,18 @@ export function showAddStrengthModal(onSave) {
     }
 
     onSave(formData);
+    document.body.style.overflow = '';
     modal.remove();
   });
 
-  modal.querySelector('.modal-close').addEventListener('click', () => modal.remove());
-  modal.querySelector('#cancelBtn').addEventListener('click', () => modal.remove());
+  modal.querySelector('.modal-close').addEventListener('click', () => {
+    document.body.style.overflow = '';
+    modal.remove();
+  });
+  modal.querySelector('#cancelBtn').addEventListener('click', () => {
+    document.body.style.overflow = '';
+    modal.remove();
+  });
 }
 
 export function showAddCardioModal(onSave) {
@@ -625,6 +636,7 @@ export function showAddCardioModal(onSave) {
   const modal = document.createElement('div');
   modal.innerHTML = modalHTML;
   document.body.appendChild(modal);
+  document.body.style.overflow = 'hidden';
 
   const form = modal.querySelector('#addCardioForm');
 
@@ -672,11 +684,18 @@ export function showAddCardioModal(onSave) {
     };
 
     onSave(formData);
+    document.body.style.overflow = '';
     modal.remove();
   });
 
-  modal.querySelector('.modal-close').addEventListener('click', () => modal.remove());
-  modal.querySelector('#cancelBtn').addEventListener('click', () => modal.remove());
+  modal.querySelector('.modal-close').addEventListener('click', () => {
+    document.body.style.overflow = '';
+    modal.remove();
+  });
+  modal.querySelector('#cancelBtn').addEventListener('click', () => {
+    document.body.style.overflow = '';
+    modal.remove();
+  });
 }
 
 export function showAddStepsModal(onSave, existingData) {
@@ -734,6 +753,7 @@ export function showAddStepsModal(onSave, existingData) {
   const modal = document.createElement('div');
   modal.innerHTML = modalHTML;
   document.body.appendChild(modal);
+  document.body.style.overflow = 'hidden';
 
   const form = modal.querySelector('#addStepsForm');
 
@@ -767,11 +787,18 @@ export function showAddStepsModal(onSave, existingData) {
     };
 
     onSave(formData);
+    document.body.style.overflow = '';
     modal.remove();
   });
 
-  modal.querySelector('.modal-close').addEventListener('click', () => modal.remove());
-  modal.querySelector('#cancelBtn').addEventListener('click', () => modal.remove());
+  modal.querySelector('.modal-close').addEventListener('click', () => {
+    document.body.style.overflow = '';
+    modal.remove();
+  });
+  modal.querySelector('#cancelBtn').addEventListener('click', () => {
+    document.body.style.overflow = '';
+    modal.remove();
+  });
 }
 
 export function showEditStrengthModal(existingSession, onSave) {
@@ -830,7 +857,7 @@ export function showEditStrengthModal(existingSession, onSave) {
 
             <div class="form-group">
               <label>Note</label>
-              <textarea id="strengthNotes" style="height: 80px; resize: vertical;">${existingSession.notes || ''}</textarea>
+              <textarea id="strengthNotes" style="height: 80px; resize: vertical;">${escapeHtml(existingSession.notes || '')}</textarea>
             </div>
 
             <div style="display: flex; gap: 0.75rem;">
@@ -846,6 +873,7 @@ export function showEditStrengthModal(existingSession, onSave) {
   const modal = document.createElement('div');
   modal.innerHTML = modalHTML;
   document.body.appendChild(modal);
+  document.body.style.overflow = 'hidden';
 
   const form = modal.querySelector('#editStrengthForm');
 
@@ -889,11 +917,18 @@ export function showEditStrengthModal(existingSession, onSave) {
     };
 
     onSave(formData);
+    document.body.style.overflow = '';
     modal.remove();
   });
 
-  modal.querySelector('.modal-close').addEventListener('click', () => modal.remove());
-  modal.querySelector('#cancelBtn').addEventListener('click', () => modal.remove());
+  modal.querySelector('.modal-close').addEventListener('click', () => {
+    document.body.style.overflow = '';
+    modal.remove();
+  });
+  modal.querySelector('#cancelBtn').addEventListener('click', () => {
+    document.body.style.overflow = '';
+    modal.remove();
+  });
 }
 
 export function showEditCardioModal(existingSession, onSave) {
@@ -970,7 +1005,7 @@ export function showEditCardioModal(existingSession, onSave) {
 
             <div class="form-group">
               <label>Note</label>
-              <textarea id="cardioNotes" style="height: 80px; resize: vertical;">${existingSession.notes || ''}</textarea>
+              <textarea id="cardioNotes" style="height: 80px; resize: vertical;">${escapeHtml(existingSession.notes || '')}</textarea>
             </div>
 
             <div style="display: flex; gap: 0.75rem;">
@@ -986,6 +1021,7 @@ export function showEditCardioModal(existingSession, onSave) {
   const modal = document.createElement('div');
   modal.innerHTML = modalHTML;
   document.body.appendChild(modal);
+  document.body.style.overflow = 'hidden';
 
   const form = modal.querySelector('#editCardioForm');
 
@@ -1033,11 +1069,18 @@ export function showEditCardioModal(existingSession, onSave) {
     };
 
     onSave(formData);
+    document.body.style.overflow = '';
     modal.remove();
   });
 
-  modal.querySelector('.modal-close').addEventListener('click', () => modal.remove());
-  modal.querySelector('#cancelBtn').addEventListener('click', () => modal.remove());
+  modal.querySelector('.modal-close').addEventListener('click', () => {
+    document.body.style.overflow = '';
+    modal.remove();
+  });
+  modal.querySelector('#cancelBtn').addEventListener('click', () => {
+    document.body.style.overflow = '';
+    modal.remove();
+  });
 }
 
 export function showProviderSelectionModal(onSelectProvider, { PROVIDERS, getAvailableProviders }) {
@@ -1080,6 +1123,7 @@ export function showProviderSelectionModal(onSelectProvider, { PROVIDERS, getAva
   const modal = document.createElement('div');
   modal.innerHTML = modalHTML;
   document.body.appendChild(modal);
+  document.body.style.overflow = 'hidden';
 
   modal.querySelectorAll('.provider-import-btn').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -1090,7 +1134,10 @@ export function showProviderSelectionModal(onSelectProvider, { PROVIDERS, getAva
     });
   });
 
-  modal.querySelector('.modal-close').addEventListener('click', () => modal.remove());
+  modal.querySelector('.modal-close').addEventListener('click', () => {
+    document.body.style.overflow = '';
+    modal.remove();
+  });
 }
 
 export function showFileImportModal(provider, onImport, { parseStepsFile }) {
@@ -1160,6 +1207,7 @@ export function showFileImportModal(provider, onImport, { parseStepsFile }) {
   const modal = document.createElement('div');
   modal.innerHTML = modalHTML;
   document.body.appendChild(modal);
+  document.body.style.overflow = 'hidden';
 
   const dropZone = modal.querySelector('#dropZone');
   const fileInput = modal.querySelector('#fileInput');
@@ -1286,8 +1334,14 @@ export function showFileImportModal(provider, onImport, { parseStepsFile }) {
     }
   });
 
-  cancelBtn.addEventListener('click', () => modal.remove());
-  modal.querySelector('.modal-close').addEventListener('click', () => modal.remove());
+  cancelBtn.addEventListener('click', () => {
+    document.body.style.overflow = '';
+    modal.remove();
+  });
+  modal.querySelector('.modal-close').addEventListener('click', () => {
+    document.body.style.overflow = '';
+    modal.remove();
+  });
 }
 
 function showFormError(form, message) {

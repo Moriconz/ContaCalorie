@@ -30,7 +30,7 @@ export const SATURATED_FAT_THRESHOLD = 18;
 
 export function calculateMacrosForAmount(foodItem, grams) {
   const ratio = grams / 100;
-  const source = foodItem.per100g || {};
+  const source = foodItem.per100g || foodItem || {};
   return {
     kcal: Number((source.kcal * ratio).toFixed(0)),
     proteine: Number((source.proteine * ratio).toFixed(1)),

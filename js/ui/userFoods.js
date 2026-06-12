@@ -2,6 +2,8 @@
   Gestione degli alimenti personalizzati salvati dall'utente.
 */
 
+import { escapeHtml } from '../utils.js';
+
 export function renderUserFoods(userFoods) {
   return `
     <section class="section card">
@@ -12,12 +14,12 @@ export function renderUserFoods(userFoods) {
       <ul class="list-group">
         ${userFoods.length ? userFoods.map(item => `
           <li>
-            <div class="list-item-title">${item.nome}</div>
+            <div class="list-item-title">${escapeHtml(item.nome)}</div>
             <div class="small-muted">${item.porzioneBase}, ${item.per100g.kcal} kcal</div>
             <button class="secondary small-action" data-edit-id="${item.id}" type="button">Modifica</button>
             <button class="secondary small-action" data-delete-id="${item.id}" type="button">Elimina</button>
           </li>
-        `).join('') : '<li>Nessun alimento salvato.</li>'}
+        `).join('') : `<li style="list-style: none;"><div class="empty-state"><span class="empty-state-emoji" aria-hidden="true">⭐</span><div class="empty-state-title">Nessun alimento personalizzato</div><div class="empty-state-hint">Salva i prodotti che usi spesso per ritrovarli subito.</div></div></li>`}
       </ul>
     </section>
   `;
@@ -35,8 +37,8 @@ export function renderUserFoodForm(food = {}) {
   return `
     <section class="section">
           <h1>${safeFood.id ? 'Modifica' : 'Nuovo'} alimento</h1>
-          <label>Nome<input id="userFoodName" value="${safeFood.nome || ''}"></label>
-          <label>Porzione base<input id="userFoodServing" value="${safeFood.porzioneBase || '100 g'}"></label>
+          <label>Nome<input id="userFoodName" value="${escapeHtml(safeFood.nome || '')}"></label>
+          <label>Porzione base<input id="userFoodServing" value="${escapeHtml(safeFood.porzioneBase || '100 g')}"></label>
           <div class="field-grid">
             <label>Kcal per 100 g<input id="userFoodKcal" type="number" min="0" max="2000" value="${safeFood.per100g?.kcal || 0}"></label>
             <label>Proteine per 100 g<input id="userFoodProt" type="number" min="0" max="200" value="${safeFood.per100g?.proteine || 0}"></label>
