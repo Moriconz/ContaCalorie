@@ -91,7 +91,7 @@ function buildFoodIndex() {
 }
 
 // Normalize food item to app format
-function normalizeFoodItem(food) {
+export function normalizeFoodItem(food) {
   return {
     id: food.id,
     source: food.source || 'BancaDatiNutrizionali',

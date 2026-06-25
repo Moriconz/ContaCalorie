@@ -13,7 +13,7 @@
  *   cache miss.
  */
 
-const APP_VERSION = 'v20';
+const APP_VERSION = 'v21'; // v21: sezione "Il Tuo Frigo" (inventario, gap, suggerimenti, score, ricette, spesa, notifiche)
 const CACHE_NAME = `calorie-pwa-${APP_VERSION}`;
 
 const CRITICAL_ASSETS = [
@@ -77,6 +77,7 @@ const STATIC_ASSETS = [
   '/js/ui/composedFoodForm.js',
   '/js/ui/foodSearch.js',
   '/js/ui/recipes.js',
+  '/js/ui/fridgeView.js',
   '/icons/icon-192.svg',
   '/icons/icon-512.svg',
   '/icons/icon-192.png',

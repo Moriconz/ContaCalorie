@@ -4,8 +4,8 @@
 */
 
 const DB_NAME = 'ContaCalorieDB';
-const DB_VERSION = 7; // v7: indici su campo `data` per query per data (niente più getAll+filter)
-const STORE_NAMES = ['userProfile', 'userFoods', 'mealEntries', 'remoteFoods', 'weightsSessions', 'cardioSessions', 'dailyWeights', 'bodyCompBaselines', 'recipes', 'dailySteps', 'activityPreferences', 'strengthSessions'];
+const DB_VERSION = 8; // v8: store `fridge` (inventario "Il Tuo Frigo")
+const STORE_NAMES = ['userProfile', 'userFoods', 'mealEntries', 'remoteFoods', 'weightsSessions', 'cardioSessions', 'dailyWeights', 'bodyCompBaselines', 'recipes', 'dailySteps', 'activityPreferences', 'strengthSessions', 'fridge'];
 // Store con record datati: ricevono un indice sul campo `data` (v7)
 const DATE_INDEXED_STORES = ['mealEntries', 'cardioSessions', 'strengthSessions', 'dailySteps', 'dailyWeights'];
 
@@ -711,5 +711,43 @@ export async function updateCardioSession(id, updates) {
     await withStore('cardioSessions', 'readwrite', store => store.put(updated));
   } catch (error) {
     console.warn('Storage: errore aggiornamento cardio session:', error);
+  }
+}
+
+// === FRIDGE (DB v8) — inventario "Il Tuo Frigo" ===
+// Schema item: { id, foodId, source, nome, quantity, unit('g'|'ml'|'pz'),
+//                expiresAt(ts ms|null), per100g:{kcal,proteine,carboidrati,grassi,...} }
+
+export async function loadFridgeItems() {
+  try {
+    return await withStore('fridge', 'readonly', store => {
+      const request = store.getAll();
+      request.onsuccess = () => {};
+      return request;
+    });
+  } catch {
+    return [];
+  }
+}
+
+export async function saveFridgeItem(item) {
+  const toSave = {
+    ...item,
+    id: item.id || crypto.randomUUID(),
+    updatedAt: new Date().toISOString()
+  };
+  try {
+    await withStore('fridge', 'readwrite', store => store.put(toSave));
+  } catch (error) {
+    console.warn('Storage: errore salvataggio fridge item:', error);
+  }
+  return toSave;
+}
+
+export async function deleteFridgeItem(id) {
+  try {
+    await withStore('fridge', 'readwrite', store => store.delete(id));
+  } catch (error) {
+    console.warn('Storage: errore eliminazione fridge item:', error);
   }
 }

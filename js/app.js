@@ -4,9 +4,9 @@
 */
 
 import { bootstrapApp } from './appBootstrap.js';
-import { loadUserProfile, saveUserProfile, loadUserFoods, saveUserFoods, loadMealsByDate, saveMealEntries, deleteMealEntry, loadAllMeals, saveCardioSession, loadCardioSessions, saveDailyWeight, loadDailyWeights, loadAllCardioSessions, deleteCardioSession, saveBodyCompBaseline, loadBodyCompBaselines, saveRecipe, loadRecipes, deleteRecipe, updateRecipe, loadRecipeById, saveDailySteps, loadDailyStepsByDate, loadDailyStepsByDateRange, deleteDailySteps, saveActivityPreferences, loadActivityPreferences, saveStrengthSession, loadStrengthSessionsByDateRange, loadAllStrengthSessions, updateStrengthSession, deleteStrengthSession, loadCardioSessionsByDateRange, updateCardioSession } from './storage.js';
+import { loadUserProfile, saveUserProfile, loadUserFoods, saveUserFoods, loadMealsByDate, saveMealEntries, deleteMealEntry, loadAllMeals, saveCardioSession, loadCardioSessions, saveDailyWeight, loadDailyWeights, loadAllCardioSessions, deleteCardioSession, saveBodyCompBaseline, loadBodyCompBaselines, saveRecipe, loadRecipes, deleteRecipe, updateRecipe, loadRecipeById, saveDailySteps, loadDailyStepsByDate, loadDailyStepsByDateRange, deleteDailySteps, saveActivityPreferences, loadActivityPreferences, saveStrengthSession, loadStrengthSessionsByDateRange, loadAllStrengthSessions, updateStrengthSession, deleteStrengthSession, loadCardioSessionsByDateRange, updateCardioSession, loadFridgeItems } from './storage.js';
 import { calculateEnergyTargets, aggregateDailySummary, calculateMacrosForAmount, buildNutritionWarning } from './nutritionEngine.js';
-import { searchFoods, getFoodDetails, getMicrosIndex, getAllFoods } from './nutritionDataProvider.js';
+import { searchFoods, getFoodDetails, getMicrosIndex, getAllFoods, normalizeFoodItem } from './nutritionDataProvider.js';
 import { aggregateDailyMicros, analyzeMicronutrients, suggestFoodsForMicro } from './micronutrientEngine.js';
 import { renderOnboarding, bindOnboardingEvents } from './ui/onboarding.js';
 import { renderDashboard, bindDashboardEvents, renderMicroDetail } from './ui/dashboard.js';
@@ -15,6 +15,7 @@ import { renderPhysicsView, bindPhysicsViewEvents } from './ui/physicsView.js';
 import { initSwipeNavigation } from './ui/swipeNav.js';
 import { lazyLoadImages } from './ui/lazyLoad.js';
 import { renderFoodSearch, bindFoodSearchEvents } from './ui/foodSearch.js';
+import { renderFridgeView, bindFridgeViewEvents, computeGaps, computeDailyScore, computeWeeklyInsight, weakestMacro, applyMealToFridge, applyRecipeToFridge, maybeNotifyExpiring, notificationsState } from './ui/fridgeView.js';
 import { renderUserFoods, bindUserFoodsEvents, renderUserFoodForm, bindUserFoodFormEvents } from './ui/userFoods.js';
 import { renderRecipesSection, bindRecipesEvents, renderRecipeForm, bindRecipeFormEvents } from './ui/recipes.js';
 import { renderWeekView, bindWeekViewEvents } from './ui/weekView.js';
@@ -181,6 +182,8 @@ async function renderCurrentView() {
     await renderSearchView();
   } else if (appState.currentView === 'foods') {
     await renderFoodsView();
+  } else if (appState.currentView === 'fridge') {
+    await renderFridgeViewPage();
   } else if (appState.currentView === 'weight') {
     await renderPhysicsViewPage();
   } else if (appState.currentView === 'activities') {
@@ -738,6 +741,45 @@ async function renderFoodsView() {
   });
 }
 
+async function renderFridgeViewPage() {
+  const [fridgeItems, recipes] = await Promise.all([loadFridgeItems(), loadRecipes()]);
+  const targets = appState.nutritionTargets;
+  const gaps = computeGaps(appState.meals, targets);
+  const score = computeDailyScore(gaps, appState.meals, fridgeItems);
+
+  // Insight settimanale: serve ≥7 giorni di dati reali. Guarda indietro 10 giorni
+  // e tiene solo quelli con pasti loggati (ponytail: 10gg basta per trovarne 7;
+  // se servono finestre più lunghe, alza la costante).
+  let insight = null;
+  let weak = null;
+  if (targets) {
+    const summaries = [];
+    for (const d of buildLastNDates(appState.currentDate, 10)) {
+      const dayMeals = await loadMealsByDate(d);
+      if (!dayMeals.length) continue;
+      const sum = aggregateDailySummary(dayMeals, targets);
+      summaries.push({ pct: {
+        proteine: Math.min(1, sum.totaleProteine / targets.proteine),
+        carboidrati: Math.min(1, sum.totaleCarbo / targets.carboidrati),
+        grassi: Math.min(1, sum.totaleGrassi / targets.grassi)
+      } });
+    }
+    insight = computeWeeklyInsight(summaries, fridgeItems);
+    weak = weakestMacro(summaries);
+  }
+
+  // Lista della spesa: carica il DB alimenti solo se c'è una carenza cronica.
+  // getAllFoods() ritorna la shape grezza → normalizza a { nome, per100g }.
+  const allFoods = weak ? (await getAllFoods()).map(normalizeFoodItem) : [];
+
+  mainContent.innerHTML = renderFridgeView({ fridgeItems, gaps, meals: appState.meals, score, insight, recipes, allFoods, weak });
+  bindFridgeViewEvents(mainContent, {
+    onChanged: () => renderCurrentView(),
+    onAddFoodToMeal: (food, grams) => showFoodDetailModal(food, grams),
+    onCookRecipe: (recipeId) => openAddRecipeAsMeal(recipeId)
+  }, { fridgeItems, gaps, allFoods, weak });
+}
+
 async function renderWeightLossView() {
   // Carica tutti i dati necessari
   const [allMeals, todayWeightsSessions, todayCardioSessions, allWeightsSessions, allCardioSessions, dailyWeights] = await Promise.all([
@@ -981,7 +1023,7 @@ async function handleFoodSelection(id, source) {
   showFoodDetailModal(food);
 }
 
-function showFoodDetailModal(food) {
+function showFoodDetailModal(food, defaultGrams = 100) {
   const suggestedMoment = suggestMealMoment();
   const html = `
     <div>
@@ -997,7 +1039,7 @@ function showFoodDetailModal(food) {
           <option value="cena" ${suggestedMoment === 'cena' ? 'selected' : ''}>Cena</option>
           <option value="altro" ${suggestedMoment === 'altro' ? 'selected' : ''}>Altro</option>
         </select></label>
-        <label>Grammi<input id="foodGrams" type="number" min="1" max="3000" value="100" style="font-size: 16px;"></label>
+        <label>Grammi<input id="foodGrams" type="number" min="1" max="3000" value="${defaultGrams}" style="font-size: 16px;"></label>
         <div id="foodDetailCalc" class="small-muted">Kcal: ${food.per100g.kcal} • Prot: ${food.per100g.proteine} g • Carbo: ${food.per100g.carboidrati} g</div>
         <div class="field-grid">
           <button id="confirmAddFood" class="primary">Aggiungi</button>
@@ -1044,6 +1086,7 @@ function showFoodDetailModal(food) {
       appState.meals.push(entry);
       await saveMealEntries([entry]);
       trackFoodUsage(entry.foodRef, entry.grammi);
+      await applyMealToFridge(entry.foodRef, entry.grammi); // scala la scorta nel frigo se presente
       closeModal();
       renderCurrentView();
       showToast('Alimento aggiunto.');
@@ -1451,6 +1494,7 @@ async function openAddRecipeAsMeal(recipeId) {
       appState.meals.push(entry);
       await saveMealEntries([entry]);
       trackFoodUsage(entry.foodRef, entry.grammi);
+      await applyRecipeToFridge(recipe.ingredients, portions); // scala gli ingredienti dal frigo
       closeModal();
       renderCurrentView();
       showToast('Ricetta aggiunta al giorno!');
@@ -1847,6 +1891,7 @@ function populateBottomNav() {
   const navButtons = [
     { view: 'dashboard', label: 'Home', emoji: '🏠' },
     { view: 'nutrition', label: 'Pasti', emoji: '🍽️' },
+    { view: 'fridge', label: 'Frigo', emoji: '🧊' },
     { view: 'physics', label: 'Attività', emoji: '💪' },
     { view: 'stats', label: 'Trend', emoji: '📈' },
     { view: 'settings', label: 'Altro', emoji: '⚙️' }
@@ -1872,6 +1917,11 @@ export async function init() {
   attachInstallButton();
   await loadState();
   renderCurrentView();
+
+  // Promemoria scadenze: solo se l'utente ha già concesso il permesso (max 1/giorno).
+  if (notificationsState() === 'granted') {
+    loadFridgeItems().then(maybeNotifyExpiring).catch(() => {});
+  }
 }
 
 function openCustomFoodFormWithMoment(moment) {

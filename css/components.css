@@ -99,3 +99,91 @@
   transform: scale(0.96);
   filter: brightness(1.1);
 }
+
+/* ───────────────── "Il Tuo Frigo" (fridgeView.js) ───────────────── */
+
+/* Score giornaliero (contatore animato via JS) */
+.fridge-score { display:flex; align-items:baseline; gap:2px; font-weight:700; }
+.fridge-score-num { font-size:1.6rem; color:var(--primary); }
+.fridge-score-max { font-size:.9rem; color:var(--muted); }
+.fridge-insight {
+  margin:.5rem 0 0; padding:.6rem .8rem; font-size:.9rem;
+  background:var(--glass-secondary); border-radius:var(--radius-md); color:var(--text);
+}
+
+/* Gap nutrizionali: progress bar animate */
+.fridge-macro { margin:.6rem 0; }
+.fridge-macro-head { display:flex; justify-content:space-between; font-size:.9rem; margin-bottom:.25rem; }
+.fridge-bar { height:8px; background:var(--glass-secondary); border-radius:999px; overflow:hidden; }
+.fridge-bar-fill {
+  height:100%; border-radius:999px; width:0;
+  transition:width var(--duration-slow,380ms) var(--easing-smooth), background var(--duration-normal) linear;
+}
+
+/* Tile suggerimento: superficie inset leggera (NON una card dentro la card),
+   entrata a cascata (stagger via animation-delay inline). */
+.fridge-sug-grid { display:grid; gap:.6rem; }
+.fridge-sug {
+  text-align:left; width:100%; padding:.8rem; cursor:pointer;
+  background:var(--glass-secondary); border:1px solid var(--glass-border); border-radius:var(--radius-md);
+  color:var(--text);
+  opacity:0; transform:translateY(8px);
+  animation:fridgeIn var(--duration-normal,240ms) var(--easing-smooth) forwards;
+  transition:border-color var(--duration-fast,150ms) var(--easing-smooth),
+             background var(--duration-fast,150ms) var(--easing-smooth),
+             transform var(--duration-fast,150ms) var(--easing-smooth);
+}
+.fridge-sug:hover { border-color:var(--glass-border-hover); background:var(--surface-strong); }
+.fridge-sug:active { transform:scale(.985); }
+.fridge-sug:focus-visible { outline:2px solid var(--primary); outline-offset:2px; }
+.fridge-sug-head { display:flex; justify-content:space-between; align-items:center; gap:.5rem; }
+.fridge-mini-row { display:flex; flex-wrap:wrap; gap:.35rem; margin-top:.4rem; }
+.fridge-mini {
+  font-size:.72rem; padding:.15rem .45rem; border-radius:999px;
+  background:var(--glass-secondary); color:var(--text-secondary);
+}
+@keyframes fridgeIn { to { opacity:1; transform:translateY(0); } }
+
+/* Badge "in scadenza": bordo colorato animato */
+.fridge-badge {
+  font-size:.7rem; font-weight:600; padding:.15rem .5rem; border-radius:999px;
+  color:var(--danger); border:1.5px solid var(--danger);
+  animation:fridgePulse 1.6s ease-in-out infinite;
+}
+@keyframes fridgePulse {
+  0%,100% { box-shadow:0 0 0 0 color-mix(in srgb, var(--danger) 55%, transparent); }
+  50%     { box-shadow:0 0 0 4px color-mix(in srgb, var(--danger) 0%, transparent); }
+}
+
+/* Inventario */
+.fridge-list .fridge-item {
+  display:flex; align-items:center; justify-content:space-between; gap:.6rem;
+}
+.fridge-item-actions { display:flex; gap:.3rem; flex-shrink:0; }
+.fridge-item-actions .small-action { min-width:2.1rem; padding:.3rem; }
+/* In scadenza: bordo rosso statico (lo stato è già chiaro). L'unico cue animato
+   è il badge sulle tile suggerimento — un accento singolo e voluto, non N righe
+   che pulsano. */
+.fridge-item-soon { border-left:3px solid var(--danger); padding-left:.6rem; }
+.fridge-add #fridgeResults { max-height:40vh; overflow:auto; }
+
+/* Lista della spesa (#2) */
+.fridge-shop-item { display:flex; align-items:center; justify-content:space-between; gap:.75rem; }
+.fridge-shop-item > div:first-child { min-width:0; } /* il nome può andare a capo senza spingere il bottone */
+
+/* I button dell'app sono full-width di default (pattern mobile): nei contesti
+   compatti del frigo (azioni di riga, header) li riporto a dimensione-contenuto
+   e azzero il margin-top pensato per i button a fine lista. */
+.fridge-shop-item .small-action,
+.fridge-item-actions .small-action,
+.card-head .small-action {
+  width:auto; flex:0 0 auto; margin-top:0;
+}
+
+/* Focus-visible coerente per i controlli interattivi del frigo (l'app non lo
+   definisce sui button: qui lo aggiungo per la navigazione da tastiera). */
+.fridge-item-actions .small-action:focus-visible,
+.fridge-shop-item .small-action:focus-visible,
+#fridgeAdd:focus-visible, #fridgeNotify:focus-visible {
+  outline:2px solid var(--primary); outline-offset:2px;
+}
