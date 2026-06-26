@@ -143,9 +143,10 @@ function safeJsonParse(value) {
 
 /**
  * FASE 10 - Migrazione meal entry al nuovo modello dati
- * Aggiunge campi mancanti mantenendo backwards compatibility
+ * Aggiunge campi mancanti mantenendo backwards compatibility.
+ * Esportata per il test di regressione sull'id (invariante anti-perdita dati).
  */
-function _migrateMealEntry(entry) {
+export function _migrateMealEntry(entry) {
   if (!entry) return null;
 
   // Determina sourceType da origin o foodRef.source
@@ -173,6 +174,10 @@ function _migrateMealEntry(entry) {
 
   return {
     ...entry,
+    // Garantisce sempre la chiave primaria: alcuni flussi di aggiunta (quick-add,
+    // wizard) costruiscono l'entry senza id → store.put falliva (keyPath 'id') e il
+    // pasto finiva nel fallback localStorage, invisibile alle letture da IndexedDB.
+    id: entry.id || crypto.randomUUID(),
     sourceType,
     confidenceLevel,
     isEstimated: entry.isEstimated || sourceType === 'D_STIMA_RAPIDA' || sourceType === 'C_PASTO_COMPOSTO',

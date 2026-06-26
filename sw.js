@@ -13,7 +13,7 @@
  *   cache miss.
  */
 
-const APP_VERSION = 'v21'; // v21: sezione "Il Tuo Frigo" (inventario, gap, suggerimenti, score, ricette, spesa, notifiche)
+const APP_VERSION = 'v22'; // v22: fix perdita pasti (entry senza id → fallback localStorage invisibile alle letture)
 const CACHE_NAME = `calorie-pwa-${APP_VERSION}`;
 
 const CRITICAL_ASSETS = [
