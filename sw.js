@@ -13,7 +13,7 @@
  *   cache miss.
  */
 
-const APP_VERSION = 'v22'; // v22: fix perdita pasti (entry senza id → fallback localStorage invisibile alle letture)
+const APP_VERSION = 'v23'; // v23: il backup (export/import) include anche lo store fridge
 const CACHE_NAME = `calorie-pwa-${APP_VERSION}`;
 
 const CRITICAL_ASSETS = [

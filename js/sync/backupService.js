@@ -17,6 +17,7 @@ import {
   loadBodyCompBaselines, saveBodyCompBaseline,
   loadRecipes, saveRecipe,
   loadActivityPreferences, saveActivityPreferences,
+  loadFridgeItems, saveFridgeItem,
   clearStore
 } from '../storage.js';
 
@@ -30,7 +31,7 @@ export async function exportAllUserData() {
     const [
       userProfile, userFoods, meals, cardioSessions,
       strengthSessions, dailyWeights, dailySteps, bodyCompBaselines,
-      recipes, activityPreferences
+      recipes, activityPreferences, fridge
     ] = await Promise.all([
       loadUserProfile(),
       loadUserFoods(),
@@ -41,7 +42,8 @@ export async function exportAllUserData() {
       loadAllDailySteps(),
       loadBodyCompBaselines(),
       loadRecipes(),
-      loadActivityPreferences()
+      loadActivityPreferences(),
+      loadFridgeItems()
     ]);
 
     return {
@@ -57,7 +59,8 @@ export async function exportAllUserData() {
       dailySteps: dailySteps || [],
       bodyCompBaselines: bodyCompBaselines || [],
       recipes: recipes || [],
-      activityPreferences: activityPreferences || null
+      activityPreferences: activityPreferences || null,
+      fridge: fridge || []
     };
   } catch (error) {
     console.error('❌ Errore export dati:', error);
@@ -141,7 +144,8 @@ export async function importAllUserData(data, mode = 'replace') {
         clearStore('dailyWeights'),
         clearStore('dailySteps'),
         clearStore('bodyCompBaselines'),
-        clearStore('recipes')
+        clearStore('recipes'),
+        clearStore('fridge')
       ]);
     }
 
@@ -157,6 +161,7 @@ export async function importAllUserData(data, mode = 'replace') {
     for (const s of data.dailySteps || []) await saveDailySteps(s);
     for (const b of data.bodyCompBaselines || []) await saveBodyCompBaseline(b);
     for (const r of data.recipes || []) await saveRecipe(r);
+    for (const f of data.fridge || []) await saveFridgeItem(f);
     if (data.activityPreferences) await saveActivityPreferences(data.activityPreferences);
 
     console.log(`✅ Import completato (${mode})`);
