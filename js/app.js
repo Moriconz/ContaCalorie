@@ -483,7 +483,8 @@ async function renderNutritionViewPage() {
         console.error('Errore eliminazione alimento:', err);
         showToast('Errore nell\'eliminazione', 3000);
       }
-    }
+    },
+    onManageRecipes: () => goToView('foods')
   });
 
 }
@@ -1340,13 +1341,8 @@ function openRecipeForm(existingRecipe = null) {
           reportError('Errore nel salvataggio della ricetta');
         }
       },
-      onCancel: closeModal,
-      onRemoveIngredient: (idx) => {
-        // This would need more complex state management in the modal
-        // For now, just show a message
-        console.log('Remove ingredient at index:', idx);
-      }
-    });
+      onCancel: closeModal
+    }, existingRecipe?.ingredients || []);
   });
 }
 
@@ -1437,12 +1433,13 @@ async function openAddRecipeAsMeal(recipeId) {
       recipe.ingredients.forEach(ing => {
         const totalGrams = ing.grammi * portions;
         // Try to find the food to get its per100g values
-        const food = appState.userFoods.find(f => f.id === ing.foodRef?.id);
-        if (food && food.per100g) {
-          totalKcal += (food.per100g.kcal * totalGrams) / 100;
-          totalProt += (food.per100g.proteine * totalGrams) / 100;
-          totalCarb += (food.per100g.carboidrati * totalGrams) / 100;
-          totalFat += (food.per100g.grassi * totalGrams) / 100;
+        // per100g salvato nell'ingrediente (ricette nuove); fallback a userFoods (legacy)
+        const per100 = ing.per100g || appState.userFoods.find(f => f.id === ing.foodRef?.id)?.per100g;
+        if (per100) {
+          totalKcal += (per100.kcal * totalGrams) / 100;
+          totalProt += (per100.proteine * totalGrams) / 100;
+          totalCarb += (per100.carboidrati * totalGrams) / 100;
+          totalFat += (per100.grassi * totalGrams) / 100;
         }
       });
 
@@ -1463,12 +1460,13 @@ async function openAddRecipeAsMeal(recipeId) {
       let totalKcal = 0, totalProt = 0, totalCarb = 0, totalFat = 0;
       recipe.ingredients.forEach(ing => {
         const totalGrams = ing.grammi * portions;
-        const food = appState.userFoods.find(f => f.id === ing.foodRef?.id);
-        if (food && food.per100g) {
-          totalKcal += (food.per100g.kcal * totalGrams) / 100;
-          totalProt += (food.per100g.proteine * totalGrams) / 100;
-          totalCarb += (food.per100g.carboidrati * totalGrams) / 100;
-          totalFat += (food.per100g.grassi * totalGrams) / 100;
+        // per100g salvato nell'ingrediente (ricette nuove); fallback a userFoods (legacy)
+        const per100 = ing.per100g || appState.userFoods.find(f => f.id === ing.foodRef?.id)?.per100g;
+        if (per100) {
+          totalKcal += (per100.kcal * totalGrams) / 100;
+          totalProt += (per100.proteine * totalGrams) / 100;
+          totalCarb += (per100.carboidrati * totalGrams) / 100;
+          totalFat += (per100.grassi * totalGrams) / 100;
         }
       });
 

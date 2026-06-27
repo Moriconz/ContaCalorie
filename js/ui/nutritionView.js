@@ -97,6 +97,12 @@ export function renderNutritionView(state, summary) {
 
     ${renderPersonalizedFoods(state.userFoods)}
 
+    <section class="section card">
+      <h2 style="font-size: 1rem; margin-bottom: 1rem; font-weight: 700;">🍳 Ricette</h2>
+      <div class="small-muted" style="margin-bottom: 1rem;">Crea ricette dai tuoi ingredienti e aggiungile come pasto (o cucinale dal Frigo).</div>
+      <button id="manageRecipesBtn" style="width: 100%; padding: 0.75rem; background: var(--primary); color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;">Gestisci ricette →</button>
+    </section>
+
     ${renderWeeklyAnalysis(summary)}
   `;
 }
@@ -336,7 +342,11 @@ export function bindNutritionViewEvents(container, callbacks) {
     onCreateCustomFood,
     onEditCustomFood,
     onDeleteCustomFood,
+    onManageRecipes,
   } = callbacks;
+
+  // Ingresso alla gestione ricette (vista `foods`, altrimenti irraggiungibile)
+  container.querySelector('#manageRecipesBtn')?.addEventListener('click', () => onManageRecipes?.());
 
   // Macro tabs switching
   container.querySelectorAll('.macro-tab').forEach(btn => {

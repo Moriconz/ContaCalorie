@@ -13,7 +13,7 @@
  *   cache miss.
  */
 
-const APP_VERSION = 'v23'; // v23: il backup (export/import) include anche lo store fridge
+const APP_VERSION = 'v24'; // v24: gestione ricette raggiungibile (ingresso "Gestisci ricette" nella vista Pasti)
 const CACHE_NAME = `calorie-pwa-${APP_VERSION}`;
 
 const CRITICAL_ASSETS = [

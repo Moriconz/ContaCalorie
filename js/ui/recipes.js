@@ -4,6 +4,8 @@
 */
 
 import { escapeHtml } from '../utils.js';
+import { searchFoods } from '../nutritionDataProvider.js';
+import { calculateMacrosForAmount } from '../nutritionEngine.js';
 
 export function renderRecipesSection(recipes) {
   return `
@@ -113,56 +115,89 @@ export function renderRecipeForm(recipe = null) {
   `;
 }
 
-export function bindRecipeFormEvents(container, callbacks) {
-  const saveBtn = container.querySelector('#saveRecipeBtn');
-  const cancelBtn = container.querySelector('#cancelRecipeBtn');
+/**
+ * Binding del form ricetta con gestione ingredienti completa e stato locale.
+ * @param {HTMLElement} container
+ * @param {Object} callbacks { onSave, onCancel }
+ * @param {Array} [initialIngredients] ingredienti esistenti (modifica)
+ */
+export function bindRecipeFormEvents(container, callbacks, initialIngredients = []) {
+  // Stato locale: ogni ingrediente = { foodRef:{id,source,name}, grammi, per100g }
+  const ingredients = (initialIngredients || []).map(i => ({
+    foodRef: i.foodRef || { name: i.nome || '' },
+    grammi: i.grammi || 100,
+    per100g: i.per100g || null
+  }));
 
-  if (saveBtn) {
-    saveBtn.addEventListener('click', () => {
-      const nome = container.querySelector('#recipeNameInput').value.trim();
-      if (!nome) {
-        alert('Inserisci il nome della ricetta');
-        return;
-      }
+  const listEl = container.querySelector('#recipeIngredientsList');
+  const resultsEl = container.querySelector('#ingredientSearchResults');
+  const searchEl = container.querySelector('#ingredientSearchInput');
+  const portionsEl = container.querySelector('#recipePortionsInput');
 
-      const ingredients = container.querySelectorAll('[data-remove-ing-idx]');
-      if (ingredients.length === 0) {
-        alert('Aggiungi almeno un ingrediente');
-        return;
-      }
-
-      const recipeData = getRecipeFormData(container);
-      callbacks.onSave(recipeData);
-    });
+  function updateMacros() {
+    const portions = Math.max(1, parseInt(portionsEl.value) || 1);
+    const tot = { kcal: 0, proteine: 0, carboidrati: 0, grassi: 0 };
+    for (const ing of ingredients) {
+      if (!ing.per100g) continue;
+      const m = calculateMacrosForAmount({ per100g: ing.per100g }, ing.grammi);
+      tot.kcal += m.kcal; tot.proteine += m.proteine; tot.carboidrati += m.carboidrati; tot.grassi += m.grassi;
+    }
+    container.querySelector('#macroKcal').textContent = Math.round(tot.kcal / portions);
+    container.querySelector('#macroProt').textContent = Math.round(tot.proteine / portions);
+    container.querySelector('#macroCarb').textContent = Math.round(tot.carboidrati / portions);
+    container.querySelector('#macroFat').textContent = Math.round(tot.grassi / portions);
   }
 
-  if (cancelBtn) {
-    cancelBtn.addEventListener('click', callbacks.onCancel);
+  function renderList() {
+    listEl.innerHTML = ingredients.length
+      ? ingredients.map((ing, idx) => `
+        <div style="padding: 0.75rem; background: var(--glass-secondary); border-radius: 8px; display: flex; justify-content: space-between; align-items: center; gap: 0.5rem;">
+          <div style="flex: 1; min-width: 0;"><strong>${escapeHtml(ing.foodRef.name)}</strong></div>
+          <input type="number" min="1" max="3000" value="${ing.grammi}" data-ing-grams="${idx}" style="width: 4.5rem; padding: 0.4rem; font-size: 16px; border: 1px solid var(--glass-border); border-radius: 6px; background: var(--glass-secondary); color: var(--text-primary);"> g
+          <button class="secondary small-action" data-remove-ing-idx="${idx}" type="button" style="margin-top:0;">Rimuovi</button>
+        </div>`).join('')
+      : '<p class="small-muted">Nessun ingrediente aggiunto. Cerca e aggiungi ingredienti.</p>';
+
+    listEl.querySelectorAll('[data-remove-ing-idx]').forEach(btn =>
+      btn.addEventListener('click', () => { ingredients.splice(Number(btn.dataset.removeIngIdx), 1); renderList(); updateMacros(); }));
+    listEl.querySelectorAll('[data-ing-grams]').forEach(inp =>
+      inp.addEventListener('input', () => { const g = Number(inp.value); if (g >= 1) { ingredients[Number(inp.dataset.ingGrams)].grammi = g; updateMacros(); } }));
   }
 
-  // Remove ingredient listeners
-  container.querySelectorAll('[data-remove-ing-idx]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const idx = btn.dataset.removeIngIdx;
-      callbacks.onRemoveIngredient(idx);
+  async function runSearch() {
+    const q = searchEl.value.trim();
+    if (q.length < 2) { resultsEl.style.display = 'none'; return; }
+    const found = await searchFoods(q);
+    resultsEl.style.display = 'block';
+    resultsEl.innerHTML = found.length
+      ? found.slice(0, 8).map((f, i) => `<button type="button" data-res="${i}" class="secondary" style="display:block; width:100%; text-align:left; margin-bottom:0.35rem; padding:0.5rem;">${escapeHtml(f.nome)} · ${f.per100g?.kcal || 0} kcal/100g</button>`).join('')
+      : '<p class="small-muted" style="margin:0;">Nessun risultato</p>';
+    resultsEl.querySelectorAll('[data-res]').forEach(btn => btn.addEventListener('click', () => {
+      const f = found[Number(btn.dataset.res)];
+      ingredients.push({ foodRef: { id: f.id, source: f.source, name: f.nome }, grammi: 100, per100g: f.per100g });
+      resultsEl.style.display = 'none'; resultsEl.innerHTML = ''; searchEl.value = '';
+      renderList(); updateMacros();
+    }));
+  }
+
+  container.querySelector('#addIngredientBtn')?.addEventListener('click', runSearch);
+  searchEl?.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); runSearch(); } });
+  portionsEl?.addEventListener('input', updateMacros);
+
+  container.querySelector('#saveRecipeBtn')?.addEventListener('click', () => {
+    const nome = container.querySelector('#recipeNameInput').value.trim();
+    if (!nome) { alert('Inserisci il nome della ricetta'); return; }
+    if (!ingredients.length) { alert('Aggiungi almeno un ingrediente'); return; }
+    callbacks.onSave({
+      nome,
+      descrizione: container.querySelector('#recipeDescInput').value.trim() || null,
+      porzioniBase: Math.max(1, parseInt(portionsEl.value) || 1),
+      ingredients: ingredients.map(i => ({ foodRef: i.foodRef, grammi: i.grammi, per100g: i.per100g }))
     });
   });
-}
 
-function getRecipeFormData(container) {
-  const ingredients = [];
-  container.querySelectorAll('[data-remove-ing-idx]').forEach((btn, idx) => {
-    const el = btn.closest('div');
-    const name = el.querySelector('strong').textContent;
-    const grams = parseInt(el.textContent.match(/(\d+)g/)?.[1] || '0');
-    // This is a simplified version - in actual implementation, we'd need to track the foodRef separately
-    ingredients.push({ foodRef: { name }, grammi: grams });
-  });
+  container.querySelector('#cancelRecipeBtn')?.addEventListener('click', callbacks.onCancel);
 
-  return {
-    nome: container.querySelector('#recipeNameInput').value.trim(),
-    descrizione: container.querySelector('#recipeDescInput').value.trim() || null,
-    porzioniBase: parseInt(container.querySelector('#recipePortionsInput').value) || 1,
-    ingredients
-  };
+  renderList();
+  updateMacros();
 }
