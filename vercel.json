@@ -1,5 +1,4 @@
 {
-  "public": true,
   "buildCommand": "echo 'Static files only'",
   "rewrites": [
     {
