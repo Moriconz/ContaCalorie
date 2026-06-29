@@ -13,7 +13,7 @@
  *   cache miss.
  */
 
-const APP_VERSION = 'v25'; // v25: tema di default = tema di sistema (no flash; scelta utente ha la precedenza)
+const APP_VERSION = 'v26'; // v26: stile "Liquid Glass" elevato (dark+light) + perf mobile (blur ridotto) + fallback a11y
 const CACHE_NAME = `calorie-pwa-${APP_VERSION}`;
 
 const CRITICAL_ASSETS = [
