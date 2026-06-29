@@ -26,8 +26,10 @@
   <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
   
   <script>
-    // Carica tema dal localStorage PRIMA di rendere la pagina
-    const savedTheme = localStorage.getItem('theme') || 'dark';
+    // Applica il tema PRIMA del primo paint (niente flash).
+    // Default = tema di sistema; la scelta esplicita salvata ha la precedenza.
+    const savedTheme = localStorage.getItem('theme')
+      || (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
     document.documentElement.setAttribute('data-theme', savedTheme);
 
     // In produzione silenzia i log di debug (warn/error restano attivi).

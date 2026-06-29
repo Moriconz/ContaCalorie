@@ -13,7 +13,7 @@
  *   cache miss.
  */
 
-const APP_VERSION = 'v24'; // v24: gestione ricette raggiungibile (ingresso "Gestisci ricette" nella vista Pasti)
+const APP_VERSION = 'v25'; // v25: tema di default = tema di sistema (no flash; scelta utente ha la precedenza)
 const CACHE_NAME = `calorie-pwa-${APP_VERSION}`;
 
 const CRITICAL_ASSETS = [
