@@ -17,10 +17,12 @@
 ---
 
 <p align="center">
-  <img src="docs/screenshots/dashboard-dark.png" alt="Dashboard — dark theme" width="30%" />
-  <img src="docs/screenshots/fridge-light.png" alt="Il Tuo Frigo — light theme" width="30%" />
-  <img src="docs/screenshots/stats-dark.png" alt="Statistiche & Insight" width="30%" />
+  <img src="docs/screenshots/dashboard-dark.jpg" alt="Dashboard — dark theme" width="30%" />
+  <img src="docs/screenshots/fridge-light.jpg" alt="Il Tuo Frigo — light theme" width="30%" />
+  <img src="docs/screenshots/stats-dark.jpg" alt="Statistiche & Insight" width="30%" />
 </p>
+
+<p align="center"><sub>Screenshot reali dall'app installata sul mio telefono — non mockup.</sub></p>
 
 ---
 
