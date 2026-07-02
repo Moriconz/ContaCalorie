@@ -1,136 +1,355 @@
-# Conta Calorie
+<div align="center">
 
-PWA mobile-first per gestire pasti, calorie e macro con storage locale e supporto offline.
+# 🧮 Conta Calorie
 
-## Avvio e installazione
+**A production PWA for nutrition tracking — 100% client-side, offline-first, zero dependencies.**
 
-### Sviluppo locale
+[![Tests](https://img.shields.io/badge/tests-54%20passing-brightgreen)](./tests)
+[![Dependencies](https://img.shields.io/badge/dependencies-zero-blue)](./package.json)
+[![PWA](https://img.shields.io/badge/PWA-installable-5A0FC8)](#-installazione--installation)
+[![Vanilla JS](https://img.shields.io/badge/JavaScript-vanilla%20ES%20modules-F7DF1E)](#stack-tecnico--tech-stack)
+[![Offline](https://img.shields.io/badge/works-offline-critical)](#sotto-il-cofano--under-the-hood)
 
-L'app richiede un server HTTP locale (gli ES6 modules non funzionano con il protocollo `file://`).
+[Italiano](#italiano) · [English](#english)
 
-**Con Node.js:**
+</div>
+
+---
+
+<p align="center">
+  <img src="docs/screenshots/dashboard-dark.png" alt="Dashboard — dark theme" width="30%" />
+  <img src="docs/screenshots/fridge-light.png" alt="Il Tuo Frigo — light theme" width="30%" />
+  <img src="docs/screenshots/stats-dark.png" alt="Statistiche & Insight" width="30%" />
+</p>
+
+---
+
+# Italiano
+
+## Cosa fa
+
+Conta Calorie è un'app per il tracking di pasti, macro, allenamenti, peso e composizione
+corporea. Non è un progetto-esercizio: è un'app che uso ogni giorno, installata come PWA
+sul telefono, ed è cresciuta per iterazioni reali basate su bug e richieste reali (uno dei
+fix descritti sotto è nato da uno screenshot che mi sono mandato dal telefono).
+
+- **Tracking pasti** — ricerca su un database di ~900 alimenti italiani (dataset CREA),
+  alimenti personalizzati, stima rapida senza dati precisi, pasti composti da più
+  ingredienti.
+- **Target energetici personalizzati** — calcolo BMR (Mifflin-St Jeor), TDEE per livello
+  di attività, macro-target adattati all'obiettivo (dimagrimento / mantenimento / massa).
+- **Il Tuo Frigo** — inventario con scadenze, calcolo del deficit nutrizionale del
+  giorno in tempo reale, e un motore di suggerimento che propone cosa mangiare dal
+  frigo per colmare le carenze (vedi sotto per come funziona davvero).
+- **Allenamenti** — sessioni pesi (con esercizi dettagliati o rapide), cardio, passi,
+  stima calorica con modelli MET/ACSM, sync opzionale da provider esterni.
+- **Composizione corporea e trend** — proiezioni di peso, stima massa magra/grassa da
+  baseline, insight settimanali generati da regole (es. "di solito non raggiungi le
+  proteine la sera").
+- **Tema chiaro/scuro** — segue il tema di sistema di default, la scelta esplicita
+  dell'utente ha sempre la precedenza e resta salvata.
+- **Backup/restore completo** — export/import JSON di tutti i dati locali.
+- **Offline al 100%** — service worker con caching intelligente, funziona su un volo
+  senza wifi tanto quanto sulla fibra di casa.
+
+## Com'è fatto
+
+Nessun framework, nessuna build step, nessun bundler. Moduli ES6 nativi, caricati
+direttamente dal browser. La scelta non è nostalgia: è stata una decisione deliberata
+per tenere il codice leggibile, il peso della pagina minimo, e zero superficie di attacco
+da dipendenze di terze parti.
+
+```mermaid
+flowchart TB
+    subgraph Browser["Browser / PWA installata"]
+        UI["Viste UI (js/ui/*.js)<br/>render(state) → HTML + bind(container, callbacks)"]
+        Router["App shell &amp; router (app.js)<br/>~2200 righe, stato centrale, tutti i flussi CRUD"]
+        Engines["Engine di calcolo puri<br/>nutritionEngine · activityEnergyEngine<br/>weightLossEstimator · fridgeView"]
+        Storage["storage.js<br/>wrapper IndexedDB + fallback localStorage"]
+    end
+    IDB[("IndexedDB<br/>ContaCalorieDB, 13 store")]
+    SW["Service Worker<br/>stale-while-revalidate"]
+    Cache[("Cache Storage")]
+
+    UI <--> Router
+    Router --> Engines
+    Router --> Storage
+    Storage --> IDB
+    SW -.intercetta ogni richiesta.-> Browser
+    SW <--> Cache
+```
+
+Ogni vista è una coppia di funzioni pure: `render(state) → stringa HTML` e
+`bind(container, callbacks) → collega gli eventi`. Gli engine di calcolo (TDEE, macro,
+punteggi del frigo, stime di composizione corporea) sono funzioni pure testabili in
+isolamento, senza toccare il DOM o il DB.
+
+## L'"intelligenza" del Frigo — come funziona davvero
+
+Voglio essere preciso qui, non voglio vendere fumo: **non c'è machine learning in questa
+app**. Il motore di suggerimento del Frigo è un algoritmo di scoring deterministico,
+non un modello addestrato. Lo descrivo comunque perché è il pezzo di logica più
+interessante del progetto, ed è comunque territorio "AI-adjacent" — ranking, scoring
+multi-obiettivo, ottimizzazione vincolata — solo senza inferenza statistica.
+
+```mermaid
+flowchart LR
+    A["Pasti già loggati oggi"] --> B["Gap nutrizionali<br/>target − consumato"]
+    C["Inventario Frigo<br/>quantità, scadenze, macro"] --> D["Per ogni alimento:<br/>% di copertura del gap<br/>con una porzione ragionevole"]
+    B --> D
+    C --> E["Urgenza di scadenza<br/>rampa 0→1 sotto le 72h"]
+    D --> F["score = copertura × 0.6<br/>+ urgenza × 0.4"]
+    E --> F
+    F --> G["Top 5 ordinati per score<br/>&lt; 50ms su 100 alimenti"]
+```
+
+Stesso approccio per: la lista della spesa (ricava gli alimenti più ricchi del macro
+carente in modo cronico, guardando 7 giorni di storico), il matching ricette↔frigo
+(per id o per nome normalizzato), e lo score giornaliero (media pesata di
+completezza-macro, varietà alimentare, utilizzo prima della scadenza).
+
+## Qualità: come ho verificato che funzioni davvero
+
+54 test automatici (`node --test`, zero framework esterni) sulle funzioni pure — motori
+di calcolo, algoritmo di suggerimento del frigo, normalizzazione dati.
+
+La parte più interessante: ho condotto un **audit sistematico dell'intero codebase
+usando Claude (Anthropic) in un workflow multi-agente**, non come autocomplete ma come
+processo di ingegneria strutturato:
+
+1. **5 agenti in parallelo** hanno documentato ogni funzione dell'app (dati/persistenza,
+   motori di calcolo, routing, UI, design system) — cosa fa e a cosa serve, con
+   riferimenti file:riga.
+2. **3 agenti di verifica indipendenti**, che non avevano scritto l'analisi, hanno
+   riletto ogni singola affermazione contro il codice sorgente reale — non fiducia nel
+   documento, verifica riga per riga. Hanno anche trovato errori nell'analisi stessa.
+3. Il bilancio finale (2 bug critici, 15 medi, ~32 minori) è stato corretto a mano da
+   me, testato, e verificato di nuovo in browser prima del commit.
+
+Il punto non è "ho usato l'AI per scrivere codice" — è che ho costruito un processo che
+tratta l'output di un modello linguistico come **un'ipotesi da verificare, non un fatto
+da accettare**. Report completi in [`docs/APP_ANALYSIS.md`](docs/APP_ANALYSIS.md) e
+[`docs/verification/`](docs/verification/).
+
+Un esempio concreto di bug trovato così: un mismatch tra `totaleCarboidrati` e
+`totaleCarbo` (due nomi diversi per lo stesso dato) produceva `NaN` silenzioso in ogni
+riga delle statistiche settimanali/mensili — nessun errore in console, solo un numero
+sbagliato in UI. Un altro, trovato non da un agente ma da uno screenshot reale che mi
+sono mandato dal telefono: il database alimentare usa nomi tipo `"Pollo, petto, crudo"`
+(virgole comprese), e l'indicizzazione per la ricerca non rimuoveva la punteggiatura —
+il 64% degli alimenti del database (577 su 900) era di fatto irraggiungibile da query
+multi-parola. Root cause isolata, verificata con uno script che replica l'algoritmo
+reale contro i dati reali, poi corretta.
+
+## Cosa NON fa (onestà prima di tutto)
+
+- **Nessun machine learning, nessuna chiamata a LLM in produzione.** I suggerimenti sono
+  scoring deterministico, non inferenza statistica. Se cerchi un progetto con modelli
+  addestrati o integrazione LLM runtime, non è questo (ma leggi sopra: il *processo* di
+  audit sì).
+- **Nessun backend, nessun account, nessun multi-dispositivo.** Tutto vive nel browser
+  dell'utente (IndexedDB). Cambiare dispositivo richiede export/import manuale del
+  backup JSON.
+- **Database alimentare in italiano, dataset CREA.** Non c'è integrazione con Open Food
+  Facts o altre API esterne (una vecchia versione del progetto la prevedeva, non più).
+- **Utente singolo per installazione.** Nessuna sincronizzazione multi-utente o
+  condivisione dati.
+- **Nessuna licenza dichiarata al momento** — repo pubblico per scopi di portfolio,
+  non ancora pensato per essere riusato/forkato in produzione da terzi.
+
+## Stack tecnico
+
+| | |
+|---|---|
+| Frontend | JavaScript vanilla, ES modules, nessun framework |
+| Persistenza | IndexedDB (con fallback localStorage), schema versionato con migrazioni |
+| Offline | Service Worker, strategia stale-while-revalidate |
+| Stile | CSS custom properties, dark/light theming, glassmorphism con budget GPU per mobile |
+| Test | `node --test` nativo, 54 test su funzioni pure |
+| Deploy | Vercel, statico, auto-deploy su push |
+| Dipendenze runtime | **zero** |
+
+## Installazione / Installazione locale
+
 ```bash
-node server.js
+git clone https://github.com/Moriconz/ContaCalorie.git
+cd ContaCalorie
+npm start          # server statico locale (server.cjs)
+# apri http://localhost:3000
 ```
-Poi apri http://localhost:3000
 
-**Con Python (alternativa):**
+Per installarla come PWA: apri l'URL da Chrome (Android) o Safari (iOS) e usa
+"Aggiungi alla schermata Home" — funziona offline dal primo avvio.
+
 ```bash
-python3 -m http.server 3000
+npm test            # esegue i 54 test automatici
 ```
 
-### Deployment su Vercel (PWA installabile)
+---
 
-1. Installa Vercel CLI: `npm i -g vercel`
-2. Dalla cartella dell'app: `vercel --prod`
-3. Segui le istruzioni per collegare il progetto a Vercel
-4. L'app è online su HTTPS automatico con URL univoco
+# English
 
-Poi apri l'URL da:
-- **Android Chrome**: premi il banner "Aggiungi alla schermata home"
-- **iOS Safari**: Condividi → "Aggiungi alla schermata home"
-- L'app si installa come PWA standalone (no barra URL browser)
+## What it does
 
-### Verificare la PWA offline
+Conta Calorie is a nutrition, workout, weight and body-composition tracking app. It's
+not a tutorial project — it's an app I use daily, installed as a PWA on my phone, and
+it has grown through real iteration on real bugs and real requests (one of the fixes
+described below started as a screenshot I sent myself from my phone).
 
-1. Apri l'app installata
-2. Vai offline (modalità aereo o disattiva WiFi)
-3. Riapri l'app: tutto funziona da cache Service Worker
+- **Meal tracking** — search across a ~900-item Italian food database (CREA dataset),
+  custom foods, quick estimates without exact label data, multi-ingredient composed
+  meals.
+- **Personalized energy targets** — BMR (Mifflin-St Jeor equation), TDEE by activity
+  level, macro targets adapted to the user's goal (cut / maintain / bulk).
+- **"Il Tuo Frigo" (Your Fridge)** — inventory with expiry tracking, real-time daily
+  nutritional-gap calculation, and a suggestion engine that recommends what to eat from
+  your fridge to close today's gaps (see below for exactly how it works).
+- **Workout tracking** — strength sessions (quick or exercise-by-exercise), cardio,
+  step tracking, calorie estimation via MET/ACSM models, optional external provider
+  sync.
+- **Body composition & trends** — weight projections, lean/fat mass estimates from a
+  baseline, rule-generated weekly insights (e.g. "you usually fall short on protein in
+  the evening").
+- **Dark/light theme** — defaults to the OS preference; an explicit user choice always
+  wins and persists.
+- **Full backup/restore** — JSON export/import of all local data.
+- **100% offline-capable** — service worker with smart caching; works on a plane with
+  no wifi the same way it works on fiber at home.
 
-## Struttura del progetto
+## Architecture
 
-- `index.html` - pagina principale.
-- `css/styles.css` - stile responsive e mobile-first.
-- `js/app.js` - bootstrap dell’app, routing locale e logica principale.
-- `js/models.js` - definizione dei dati e delle forme dei record.
-- `js/storage.js` - accesso a IndexedDB + fallback a localStorage.
-- `js/nutritionEngine.js` - calcolo macros, BMR/TDEE e riepiloghi.
-- `js/nutritionDataProvider.js` - integrazione con Open Food Facts.
-- `js/photoNutrition.js` - integrazione astratta per API foto.
-- `js/ui/*.js` - moduli di interfaccia utente per onboarding, dashboard, ricerca, alimenti utente, settimana e foto.
-- `sw.js` - service worker minimale.
-- `manifest.webmanifest` - manifest PWA.
+No framework, no build step, no bundler. Native ES6 modules, loaded straight by the
+browser. That's not nostalgia — it was a deliberate choice to keep the code readable,
+the page weight minimal, and the third-party dependency attack surface at zero.
 
-## Cambiare provider dell’API nutrizionale
+```mermaid
+flowchart TB
+    subgraph Browser["Browser / Installed PWA"]
+        UI["UI views (js/ui/*.js)<br/>render(state) → HTML + bind(container, callbacks)"]
+        Router["App shell &amp; router (app.js)<br/>~2200 lines, central state, all CRUD flows"]
+        Engines["Pure calculation engines<br/>nutritionEngine · activityEnergyEngine<br/>weightLossEstimator · fridgeView"]
+        Storage["storage.js<br/>IndexedDB wrapper + localStorage fallback"]
+    end
+    IDB[("IndexedDB<br/>ContaCalorieDB, 13 stores")]
+    SW["Service Worker<br/>stale-while-revalidate"]
+    Cache[("Cache Storage")]
 
-Il provider è definito in `js/nutritionDataProvider.js`.
-
-- `searchFoods(query)` usa Open Food Facts.
-- `getFoodDetails(id)` recupera il dettaglio prodotto.
-- Per sostituire il provider, mantenere le funzioni esportate e normalizzare il risultato in formato `foodItem`.
-
-## Agganciare la `PhotoNutritionAPI`
-
-Il modulo `js/photoNutrition.js` definisce il placeholder:
-
-- `PHOTO_NUTRITION_API_URL` - impostare l’endpoint reale.
-- `analyzePhoto(imageBlob)` invia un `FormData` con chiave `image`.
-- Il risultato atteso deve essere un oggetto con:
-  - `items: Array<{ name, estimateGrams, macro: { kcal, proteine, carboidrati, grassi, zuccheri, fibra }, imageUri? }>`
-
-Se l’endpoint non è definito, l’app usa un mock dimostrativo per sviluppo.
-
-## Stima dei valori nutrizionali senza etichetta
-
-Nella schermata **Aggiungi alimento**, puoi usare **"Stima senza dati precisi"** per aggiungere cibi di cui conosci solo il nome e il peso.
-
-### Flusso di stima
-
-1. Clicca "Stima senza dati precisi"
-2. Inserisci il **nome dell'alimento** (es: "pasta col sugo", "pane dal forno")
-3. Inserisci il **peso in grammi**
-4. L'app riconosce la categoria e mostra:
-   - Categoria stimata (es: "Pasta cotta", "Pane bianco")
-   - Valori medi per 100g dalla tabella USDA
-   - Valori calcolati per il peso inserito
-5. Puoi **cambiare categoria** se non è corretta
-6. Conferma e aggiungi al pasto
-
-### Note importanti
-
-- **Sono valori medi**, non precisi. Usa sempre dati da etichetta quando disponibili.
-- Le categorie supportate sono ordinate alfabeticamente nel modulo (`typicalValues.js`).
-- Se non riconosce il nome, scegli una categoria generica dal dropdown.
-- Un piccolo "~" indica nella lista pasti che è un valore stimato.
-
-### Estendere le categorie
-
-Nel file `js/typicalValues.js`:
-1. Aggiungi una nuova chiave in `TYPICAL_FOOD_CATEGORIES` con i valori per 100g.
-2. Aggiungi le parole chiave di matching nella funzione `guessTypicalCategoryFromName()`.
-3. I valori sono in grammi (proteine, carbo, grassi, fibra, zuccheri) e calorie (kcal).
-
-Esempio:
-```js
-melone: {
-  kcal: 34, proteine: 0.8, carboidrati: 8, grassi: 0.2, fibra: 0.9, zuccheri: 7
-}
+    UI <--> Router
+    Router --> Engines
+    Router --> Storage
+    Storage --> IDB
+    SW -.intercepts every request.-> Browser
+    SW <--> Cache
 ```
 
-## Parametri scientifici configurabili
+Every view is a pair of pure functions: `render(state) → HTML string` and
+`bind(container, callbacks) → wires events`. The calculation engines (TDEE, macros,
+fridge scoring, body-composition estimates) are pure, independently testable functions
+that never touch the DOM or the database.
 
-I valori principali sono in `js/nutritionEngine.js`:
+## The Fridge's "intelligence" — how it actually works
 
-- `ACTIVITY_FACTORS` - fattori per stile di vita.
-- `CALORIE_ADJUSTMENT` - deficit/surplus per obiettivi.
-- `PROTEIN_G_PER_KG` - valori in g/kg in base al target.
-- `FAT_RATIO` - percentuale del fabbisogno calorico destinata ai grassi.
-- `DEFAULT_FIBER_TARGET` - fibra giornaliera suggerita.
-- `DEFAULT_SUGAR_THRESHOLD` e `SODIUM_THRESHOLD` - soglie critiche per warning.
+I want to be precise here, not sell smoke: **there is no machine learning in this app.**
+The Fridge suggestion engine is a deterministic scoring algorithm, not a trained model.
+I'm describing it anyway because it's the most interesting piece of logic in the
+project, and it's still AI-adjacent territory — ranking, multi-objective scoring,
+constrained optimization — just without statistical inference.
 
-## Test manuali consigliati
+```mermaid
+flowchart LR
+    A["Meals already logged today"] --> B["Nutritional gap<br/>target − consumed"]
+    C["Fridge inventory<br/>quantity, expiry, macros"] --> D["For each item:<br/>% of gap covered<br/>by a reasonable portion"]
+    B --> D
+    C --> E["Expiry urgency<br/>0→1 ramp under 72h"]
+    D --> F["score = coverage × 0.6<br/>+ urgency × 0.4"]
+    E --> F
+    F --> G["Top 5 sorted by score<br/>&lt; 50ms over 100 items"]
+```
 
-1. Completa l’onboarding con un profilo e guarda i target.
-2. Aggiungi un alimento da ricerca e verifica il riepilogo del giorno.
-3. Crea un alimento personalizzato e usalo nell’inserimento.
-4. Prova il flusso foto: carica un’immagine demo, modifica le stime e conferma.
-5. Vai offline e riapri l’app: verifica che il contenuto di base sia disponibile.
-6. Usa la vista settimana e seleziona un giorno per vedere i dettagli.
+Same approach for: the shopping list (derives the foods richest in whatever macro is
+chronically deficient, looking at 7 days of history), recipe↔fridge matching (by id or
+normalized name), and the daily score (weighted average of macro completeness, food
+variety, and pre-expiry usage).
 
-## Note su privacy, performance e robustezza
+## Quality: how I actually verified it works
 
-- Nessun tracking esterno.
-- Dati salvati solo localmente (profilo, pasti, alimenti).
-- IndexedDB è preferito, con fallback a localStorage.
-- Errori mostrati all’utente in modo chiaro, senza stack trace.
-- Service worker minimo per caching statico.
+54 automated tests (`node --test`, zero external test frameworks) on the pure
+functions — calculation engines, the fridge suggestion algorithm, data normalization.
+
+The more interesting part: I ran a **systematic audit of the entire codebase using
+Claude (Anthropic) in a multi-agent workflow** — not as autocomplete, but as a
+structured engineering process:
+
+1. **5 agents in parallel** documented every function in the app (data/persistence,
+   calculation engines, routing, UI, design system) — what it does and why, with
+   file:line references.
+2. **3 independent verification agents**, none of which had written the analysis,
+   re-checked every single claim against the real source code — not trust in the
+   document, line-by-line verification. They also caught errors in the analysis itself.
+3. The final tally (2 critical bugs, 15 medium, ~32 minor) was hand-fixed by me,
+   tested, and re-verified in the browser before each commit.
+
+The point isn't "I used AI to write code" — it's that I built a process that treats a
+language model's output as **a hypothesis to verify, not a fact to accept**. Full
+reports in [`docs/APP_ANALYSIS.md`](docs/APP_ANALYSIS.md) and
+[`docs/verification/`](docs/verification/).
+
+One concrete bug found this way: a mismatch between `totaleCarboidrati` and
+`totaleCarbo` (two different names for the same field) silently produced `NaN` in every
+row of the weekly/monthly stats — no console error, just a wrong number in the UI.
+Another one, found not by an agent but by an actual screenshot I sent myself from my
+phone: the food database uses names like `"Pollo, petto, crudo"` (commas included),
+and the search index wasn't stripping punctuation before tokenizing — 64% of the food
+database (577 of 900 items) was effectively unreachable from any multi-word query. I
+isolated the root cause, verified it with a script that replicated the real algorithm
+against the real data, then fixed it.
+
+## What it does NOT do (honesty first)
+
+- **No machine learning, no LLM calls at runtime.** Suggestions are deterministic
+  scoring, not statistical inference. If you're looking for a project with trained
+  models or a runtime LLM integration, this isn't it (but see above: the *engineering
+  process* used to build it is).
+- **No backend, no accounts, no multi-device sync.** Everything lives in the user's
+  browser (IndexedDB). Switching devices requires a manual JSON backup export/import.
+- **Italian-language food database, CREA dataset.** No Open Food Facts or other
+  external API integration (an early version of the project had this, no longer does).
+- **Single user per install.** No multi-user sync or data sharing.
+- **No license declared yet** — public repo for portfolio purposes, not yet set up to
+  be reused/forked in production by third parties.
+
+## Tech stack
+
+| | |
+|---|---|
+| Frontend | Vanilla JavaScript, ES modules, no framework |
+| Persistence | IndexedDB (with localStorage fallback), versioned schema with migrations |
+| Offline | Service Worker, stale-while-revalidate strategy |
+| Styling | CSS custom properties, dark/light theming, glassmorphism with a mobile GPU budget |
+| Testing | Native `node --test`, 54 tests on pure functions |
+| Deploy | Vercel, static, auto-deploy on push |
+| Runtime dependencies | **zero** |
+
+## Getting started
+
+```bash
+git clone https://github.com/Moriconz/ContaCalorie.git
+cd ContaCalorie
+npm start          # local static server (server.cjs)
+# open http://localhost:3000
+```
+
+To install as a PWA: open the URL in Chrome (Android) or Safari (iOS) and use "Add to
+Home Screen" — it works offline from the very first launch.
+
+```bash
+npm test            # runs the 54 automated tests
+```
+
+---
+
+<div align="center">
+
+**Riccardo Moricone** — [LinkedIn](https://www.linkedin.com/in/riccardo-moricone-0b3426157/)
+
+</div>
