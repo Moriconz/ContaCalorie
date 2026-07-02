@@ -25,7 +25,7 @@ export function getWeeklyStats(meals, nutritionTargets, endDate = new Date()) {
              d.toLocaleDateString('it-IT', { weekday: 'short' }).slice(1),
       totaleCalorie: summary.totaleCalorie,
       proteine: Math.round(summary.totaleProteine),
-      carboidrati: Math.round(summary.totaleCarboidrati),
+      carboidrati: Math.round(summary.totaleCarbo),
       grassi: Math.round(summary.totaleGrassi),
       deficitCalorie: nutritionTargets.tdee - summary.totaleCalorie,
       status: summary.confrontoConTarget.calorie.percent >= 90 && summary.confrontoConTarget.calorie.percent <= 110 ? 'ok' :
@@ -65,7 +65,7 @@ export function getMonthlyStats(meals, nutritionTargets, year = new Date().getFu
       giorno: i,
       calorie: summary.totaleCalorie,
       proteine: Math.round(summary.totaleProteine),
-      carboidrati: Math.round(summary.totaleCarboidrati),
+      carboidrati: Math.round(summary.totaleCarbo),
       grassi: Math.round(summary.totaleGrassi),
       deficitCalorie: nutritionTargets.tdee - summary.totaleCalorie,
       status: summary.confrontoConTarget.calorie.percent >= 90 && summary.confrontoConTarget.calorie.percent <= 110 ? '✓' :
@@ -164,9 +164,12 @@ export function getProteinAdequacy(totalProteine, userWeightKg) {
    * Valuta adeguatezza proteiche
    * Consigliato: 1.6-2.2 g/kg per composizione corporea
    */
-  const minTarget = userWeightKg * 1.6;
-  const maxTarget = userWeightKg * 2.2;
-  const ratioGram = totalProteine / userWeightKg;
+  // Guardia: senza peso valido (profilo incompleto) i calcoli darebbero NaN,
+  // che i confronti sotto avrebbero fatto cadere silenziosamente su "adeguato".
+  const safeWeightKg = userWeightKg || 70;
+  const minTarget = safeWeightKg * 1.6;
+  const maxTarget = safeWeightKg * 2.2;
+  const ratioGram = totalProteine / safeWeightKg;
 
   let status, message;
   if (totalProteine < minTarget) {

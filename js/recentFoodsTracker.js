@@ -18,8 +18,10 @@ export function trackFoodUsage(foodRef, grammi) {
   const key = `${foodRef.source}:${foodRef.id}`;
   const recents = getRecents();
 
-  // Rimuovi se esiste già
+  // Rimuovi se esiste già (legge il count PRIMA di rimuoverlo: dopo lo splice
+  // l'indice punta a un elemento diverso, azzerando il conteggio reale)
   const idx = recents.findIndex(r => r.key === key);
+  const previousCount = idx >= 0 ? recents[idx].count || 0 : 0;
   if (idx >= 0) recents.splice(idx, 1);
 
   // Aggiungi in testa
@@ -28,7 +30,7 @@ export function trackFoodUsage(foodRef, grammi) {
     foodRef,
     grammi,
     lastUsed: new Date().toISOString(),
-    count: (recents[idx]?.count || 0) + 1
+    count: previousCount + 1
   });
 
   // Taglia a MAX_RECENTS
