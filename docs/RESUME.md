@@ -77,6 +77,14 @@ ora sono chip a pillola cliccabili (`.chip-toggle`, in `css/components.css`) inv
 della griglia di checkbox — checkbox nativa nascosta ma accessibile (tab/screen reader
 ok), stato attivo sincronizzato via classe JS in `js/ui/activities.js`.
 
+### README riscritto per pubblico recruiter/portfolio (bilingue IT+EN)
+`README.md` root: feature overview, diagrammi Mermaid (architettura + scoring frigo),
+sezione onestà su cosa NON fa (no ML, no backend, no multi-device), screenshot reali
+in `docs/screenshots/*.jpg`. **Importante**: il codice è attribuito a Claude, non
+all'utente — l'utente ha fornito idee/direzione/screenshot/test, con revisione umana
+obbligatoria su ogni commit. Non reintrodurre framing "I built/I wrote" in prima
+persona lato utente da nessuna parte nel repo (README, commit message, docs).
+
 ## Bug/pattern da NON reintrodurre
 
 - **Ogni meal entry DEVE avere un `id`** prima di `store.put` (keyPath è `'id'`).

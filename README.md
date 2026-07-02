@@ -22,7 +22,9 @@
   <img src="docs/screenshots/stats-dark.jpg" alt="Statistiche & Insight" width="30%" />
 </p>
 
-<p align="center"><sub>Screenshot reali dall'app installata sul mio telefono — non mockup.</sub></p>
+<p align="center"><sub>Screenshot reali dall'app installata su telefono — non mockup.</sub></p>
+
+<p align="center"><sub>🤖 Codice scritto interamente da Claude (Anthropic), sotto supervisione umana obbligatoria ad ogni step — vedi <a href="#processo-ai-supervisionato">più sotto</a> / <a href="#ai-assisted-process-with-mandatory-human-review">below</a>.</sub></p>
 
 ---
 
@@ -31,9 +33,10 @@
 ## Cosa fa
 
 Conta Calorie è un'app per il tracking di pasti, macro, allenamenti, peso e composizione
-corporea. Non è un progetto-esercizio: è un'app che uso ogni giorno, installata come PWA
-sul telefono, ed è cresciuta per iterazioni reali basate su bug e richieste reali (uno dei
-fix descritti sotto è nato da uno screenshot che mi sono mandato dal telefono).
+corporea. Non è un progetto-esercizio: è un'app usata ogni giorno, installata come PWA
+sul telefono, cresciuta per iterazioni reali basate su bug e richieste reali (uno dei
+fix descritti sotto è nato da uno screenshot inviato da telefono durante l'uso normale
+dell'app).
 
 - **Tracking pasti** — ricerca su un database di ~900 alimenti italiani (dataset CREA),
   alimenti personalizzati, stima rapida senza dati precisi, pasti composti da più
@@ -110,38 +113,46 @@ carente in modo cronico, guardando 7 giorni di storico), il matching ricette↔f
 (per id o per nome normalizzato), e lo score giornaliero (media pesata di
 completezza-macro, varietà alimentare, utilizzo prima della scadenza).
 
-## Qualità: come ho verificato che funzioni davvero
+## Processo AI-supervisionato
 
-54 test automatici (`node --test`, zero framework esterni) sulle funzioni pure — motori
-di calcolo, algoritmo di suggerimento del frigo, normalizzazione dati.
+**Tutto il codice di questo repository è stato scritto da Claude (Anthropic).** Il mio
+contributo umano è: idee e requisiti di prodotto, direzione su cosa costruire e in che
+ordine, screenshot e bug report da uso reale dell'app, e — punto non negoziabile —
+**revisione e test manuali obbligatori prima di ogni commit**. Nessuna modifica è mai
+stata accettata senza che io la verificassi di persona nell'app funzionante.
 
-La parte più interessante: ho condotto un **audit sistematico dell'intero codebase
-usando Claude (Anthropic) in un workflow multi-agente**, non come autocomplete ma come
-processo di ingegneria strutturato:
+Questo non è "ho chiesto a un chatbot di scrivere del codice". È un processo con
+verifica strutturata:
 
-1. **5 agenti in parallelo** hanno documentato ogni funzione dell'app (dati/persistenza,
-   motori di calcolo, routing, UI, design system) — cosa fa e a cosa serve, con
-   riferimenti file:riga.
+1. **5 agenti Claude in parallelo** hanno documentato ogni funzione dell'app
+   (dati/persistenza, motori di calcolo, routing, UI, design system) — cosa fa e a cosa
+   serve, con riferimenti file:riga.
 2. **3 agenti di verifica indipendenti**, che non avevano scritto l'analisi, hanno
    riletto ogni singola affermazione contro il codice sorgente reale — non fiducia nel
    documento, verifica riga per riga. Hanno anche trovato errori nell'analisi stessa.
-3. Il bilancio finale (2 bug critici, 15 medi, ~32 minori) è stato corretto a mano da
-   me, testato, e verificato di nuovo in browser prima del commit.
+3. Il bilancio finale (2 bug critici, 15 medi, ~32 minori) è stato corretto da Claude,
+   e **verificato da me** in browser prima di ogni commit — nessuna correzione è
+   arrivata su `main` senza controllo umano.
 
-Il punto non è "ho usato l'AI per scrivere codice" — è che ho costruito un processo che
-tratta l'output di un modello linguistico come **un'ipotesi da verificare, non un fatto
-da accettare**. Report completi in [`docs/APP_ANALYSIS.md`](docs/APP_ANALYSIS.md) e
-[`docs/verification/`](docs/verification/).
+Report completi in [`docs/APP_ANALYSIS.md`](docs/APP_ANALYSIS.md) e
+[`docs/verification/`](docs/verification/) — non affermazioni, evidenza file:riga
+verificabile da chiunque.
 
 Un esempio concreto di bug trovato così: un mismatch tra `totaleCarboidrati` e
 `totaleCarbo` (due nomi diversi per lo stesso dato) produceva `NaN` silenzioso in ogni
 riga delle statistiche settimanali/mensili — nessun errore in console, solo un numero
-sbagliato in UI. Un altro, trovato non da un agente ma da uno screenshot reale che mi
-sono mandato dal telefono: il database alimentare usa nomi tipo `"Pollo, petto, crudo"`
-(virgole comprese), e l'indicizzazione per la ricerca non rimuoveva la punteggiatura —
-il 64% degli alimenti del database (577 su 900) era di fatto irraggiungibile da query
-multi-parola. Root cause isolata, verificata con uno script che replica l'algoritmo
-reale contro i dati reali, poi corretta.
+sbagliato in UI. Un altro, non trovato da un agente ma da uno screenshot reale inviato
+durante l'uso normale dell'app: il database alimentare usa nomi tipo
+`"Pollo, petto, crudo"` (virgole comprese), e l'indicizzazione per la ricerca non
+rimuoveva la punteggiatura — il 64% degli alimenti del database (577 su 900) era di
+fatto irraggiungibile da query multi-parola. Root cause isolata da Claude, verificata
+con uno script che replica l'algoritmo reale contro i dati reali, poi corretta —
+e ri-testata a mano prima del commit.
+
+## Qualità
+
+54 test automatici (`node --test`, zero framework esterni) sulle funzioni pure — motori
+di calcolo, algoritmo di suggerimento del frigo, normalizzazione dati.
 
 ## Cosa NON fa (onestà prima di tutto)
 
@@ -194,9 +205,9 @@ npm test            # esegue i 54 test automatici
 ## What it does
 
 Conta Calorie is a nutrition, workout, weight and body-composition tracking app. It's
-not a tutorial project — it's an app I use daily, installed as a PWA on my phone, and
-it has grown through real iteration on real bugs and real requests (one of the fixes
-described below started as a screenshot I sent myself from my phone).
+not a tutorial project — it's an app used daily, installed as a PWA, and it has grown
+through real iteration on real bugs and real requests (one of the fixes described
+below started as a screenshot sent during normal daily use of the app).
 
 - **Meal tracking** — search across a ~900-item Italian food database (CREA dataset),
   custom foods, quick estimates without exact label data, multi-ingredient composed
@@ -273,38 +284,46 @@ chronically deficient, looking at 7 days of history), recipe↔fridge matching (
 normalized name), and the daily score (weighted average of macro completeness, food
 variety, and pre-expiry usage).
 
-## Quality: how I actually verified it works
+## AI-assisted process with mandatory human review
 
-54 automated tests (`node --test`, zero external test frameworks) on the pure
-functions — calculation engines, the fridge suggestion algorithm, data normalization.
+**Every line of code in this repository was written by Claude (Anthropic).** My human
+contribution is: product ideas and direction, prioritization, screenshots and bug
+reports from real daily use of the app, and — non-negotiable — **mandatory manual
+review and testing before every commit**. No change was ever accepted without me
+verifying it myself in the working app.
 
-The more interesting part: I ran a **systematic audit of the entire codebase using
-Claude (Anthropic) in a multi-agent workflow** — not as autocomplete, but as a
-structured engineering process:
+This isn't "I asked a chatbot to write some code." It's a process with structured
+verification:
 
-1. **5 agents in parallel** documented every function in the app (data/persistence,
-   calculation engines, routing, UI, design system) — what it does and why, with
-   file:line references.
+1. **5 Claude agents in parallel** documented every function in the app
+   (data/persistence, calculation engines, routing, UI, design system) — what it does
+   and why, with file:line references.
 2. **3 independent verification agents**, none of which had written the analysis,
    re-checked every single claim against the real source code — not trust in the
    document, line-by-line verification. They also caught errors in the analysis itself.
-3. The final tally (2 critical bugs, 15 medium, ~32 minor) was hand-fixed by me,
-   tested, and re-verified in the browser before each commit.
+3. The final tally (2 critical bugs, 15 medium, ~32 minor) was fixed by Claude, and
+   **verified by me** in the browser before every commit — nothing reached `main`
+   without human review.
 
-The point isn't "I used AI to write code" — it's that I built a process that treats a
-language model's output as **a hypothesis to verify, not a fact to accept**. Full
-reports in [`docs/APP_ANALYSIS.md`](docs/APP_ANALYSIS.md) and
-[`docs/verification/`](docs/verification/).
+Full reports in [`docs/APP_ANALYSIS.md`](docs/APP_ANALYSIS.md) and
+[`docs/verification/`](docs/verification/) — not claims, file:line evidence anyone can
+check.
 
 One concrete bug found this way: a mismatch between `totaleCarboidrati` and
 `totaleCarbo` (two different names for the same field) silently produced `NaN` in every
 row of the weekly/monthly stats — no console error, just a wrong number in the UI.
-Another one, found not by an agent but by an actual screenshot I sent myself from my
-phone: the food database uses names like `"Pollo, petto, crudo"` (commas included),
-and the search index wasn't stripping punctuation before tokenizing — 64% of the food
-database (577 of 900 items) was effectively unreachable from any multi-word query. I
-isolated the root cause, verified it with a script that replicated the real algorithm
-against the real data, then fixed it.
+Another one, not found by an agent but by an actual screenshot sent during normal daily
+use of the app: the food database uses names like `"Pollo, petto, crudo"` (commas
+included), and the search index wasn't stripping punctuation before tokenizing — 64% of
+the food database (577 of 900 items) was effectively unreachable from any multi-word
+query. Claude isolated the root cause, verified it with a script that replicated the
+real algorithm against the real data, then fixed it — and it was re-tested by hand
+before the commit.
+
+## Quality
+
+54 automated tests (`node --test`, zero external test frameworks) on the pure
+functions — calculation engines, the fridge suggestion algorithm, data normalization.
 
 ## What it does NOT do (honesty first)
 
@@ -352,6 +371,7 @@ npm test            # runs the 54 automated tests
 
 <div align="center">
 
-**Riccardo Moricone** — [LinkedIn](https://www.linkedin.com/in/riccardo-moricone-0b3426157/)
+Idea, direzione e supervisione: **Riccardo Moricone** — [LinkedIn](https://www.linkedin.com/in/riccardo-moricone-0b3426157/)
+Codice: Claude (Anthropic)
 
 </div>
