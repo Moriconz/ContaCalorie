@@ -350,6 +350,32 @@ export function bindActivitiesEvents(container, callbacks) {
 
 // ===== MODAL FUNCTIONS =====
 
+/**
+ * Markup dei gruppi muscolari come chip cliccabili (checkbox nativa nascosta
+ * ma accessibile) invece della griglia di checkbox grezze.
+ */
+function muscleGroupChipsHtml(muscleGroupOptions, selected = []) {
+  return `
+    <div class="chip-toggle-group">
+      ${muscleGroupOptions.map(group => `
+        <label class="chip-toggle${selected.includes(group) ? ' chip-toggle--active' : ''}">
+          <input type="checkbox" class="strengthMuscleGroup" value="${group}" ${selected.includes(group) ? 'checked' : ''}>
+          <span>${group.charAt(0).toUpperCase() + group.slice(1)}</span>
+        </label>
+      `).join('')}
+    </div>
+  `;
+}
+
+/** Sincronizza la classe visiva della chip con lo stato reale della checkbox. */
+function wireMuscleGroupChips(modal) {
+  modal.querySelectorAll('.chip-toggle input[type="checkbox"]').forEach(cb => {
+    cb.addEventListener('change', () => {
+      cb.closest('.chip-toggle').classList.toggle('chip-toggle--active', cb.checked);
+    });
+  });
+}
+
 export function showAddStrengthModal(onSave) {
   const today = new Date().toISOString().split('T')[0];
   const muscleGroupOptions = ['chest', 'back', 'shoulders', 'biceps', 'triceps', 'forearms', 'legs', 'glutes', 'hamstrings', 'calves', 'core', 'neck'];
@@ -395,14 +421,7 @@ export function showAddStrengthModal(onSave) {
 
             <div class="form-group">
               <label>Gruppi Muscolari Allenati</label>
-              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; max-height: 200px; overflow-y: auto; padding: 0.5rem; background: var(--glass-secondary); border-radius: 6px;">
-                ${muscleGroupOptions.map(group => `
-                  <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; margin: 0;">
-                    <input type="checkbox" class="strengthMuscleGroup" value="${group}">
-                    <span style="font-size: 0.9rem;">${group.charAt(0).toUpperCase() + group.slice(1)}</span>
-                  </label>
-                `).join('')}
-              </div>
+              ${muscleGroupChipsHtml(muscleGroupOptions)}
             </div>
 
             <div class="form-group">
@@ -438,6 +457,7 @@ export function showAddStrengthModal(onSave) {
   modal.innerHTML = modalHTML;
   document.body.appendChild(modal);
   document.body.style.overflow = 'hidden';
+  wireMuscleGroupChips(modal);
 
   const form = modal.querySelector('#addStrengthForm');
   const detailedToggle = modal.querySelector('#strengthDetailedMode');
@@ -845,14 +865,7 @@ export function showEditStrengthModal(existingSession, onSave) {
 
             <div class="form-group">
               <label>Gruppi Muscolari</label>
-              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; max-height: 200px; overflow-y: auto; padding: 0.5rem; background: var(--glass-secondary); border-radius: 6px;">
-                ${muscleGroupOptions.map(group => `
-                  <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; margin: 0;">
-                    <input type="checkbox" class="strengthMuscleGroup" value="${group}" ${(existingSession.muscleGroups || []).includes(group) ? 'checked' : ''}>
-                    <span style="font-size: 0.9rem;">${group.charAt(0).toUpperCase() + group.slice(1)}</span>
-                  </label>
-                `).join('')}
-              </div>
+              ${muscleGroupChipsHtml(muscleGroupOptions, existingSession.muscleGroups || [])}
             </div>
 
             <div class="form-group">
@@ -874,6 +887,7 @@ export function showEditStrengthModal(existingSession, onSave) {
   modal.innerHTML = modalHTML;
   document.body.appendChild(modal);
   document.body.style.overflow = 'hidden';
+  wireMuscleGroupChips(modal);
 
   const form = modal.querySelector('#editStrengthForm');
 

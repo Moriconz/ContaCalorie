@@ -536,18 +536,27 @@ html[data-theme="light"] .modal-overlay {
   width: 100%;
 }
 
+/* .modal/.modal-content sono il sistema usato da activities.js (allenamenti).
+   Allineato a .modal-overlay/.modal-card (modal.js, il sistema condiviso) così
+   ogni finestra dell'app ha la stessa grafica: stesso blur/ombra/raggio a
+   token, stessa animazione di entrata, stesso bottom-sheet su mobile. */
 .modal {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.5);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
+  background: rgba(5, 7, 14, 0.45);
+  backdrop-filter: blur(20px) saturate(120%);
+  -webkit-backdrop-filter: blur(20px) saturate(120%);
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 1rem;
   z-index: 999;
   overflow-y: auto;
+  animation: overlay-in var(--duration-normal) var(--easing-smooth);
+}
+
+html[data-theme="light"] .modal {
+  background: rgba(40, 48, 80, 0.25);
 }
 
 .modal-content {
@@ -555,21 +564,44 @@ html[data-theme="light"] .modal-overlay {
   max-width: 500px;
   max-height: 90vh;
   overflow-y: auto;
-  border-radius: 20px;
-  background: var(--glass-primary);
-  backdrop-filter: var(--blur-glass);
-  -webkit-backdrop-filter: var(--blur-glass);
+  border-radius: var(--radius-xl);
+  background: var(--glass-thick, var(--glass-primary));
+  backdrop-filter: blur(48px) var(--saturate-glass);
+  -webkit-backdrop-filter: blur(48px) var(--saturate-glass);
   border: 1px solid var(--glass-border);
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  box-shadow: var(--glass-highlight-strong), var(--shadow-lg);
   padding: 2rem;
   position: relative;
   box-sizing: border-box;
+  animation: card-in var(--duration-slow) var(--easing-smooth);
 }
 
-html[data-theme="light"] .modal-content {
-  background: rgba(180, 190, 210, 0.35);
-  border-color: rgba(255, 255, 255, 0.25);
-  box-shadow: 0 8px 32px rgba(31, 38, 135, 0.15);
+/* Mobile: bottom sheet alla iOS, come .modal-card */
+@media (max-width: 640px) {
+  .modal {
+    align-items: flex-end;
+    padding: 0;
+  }
+
+  .modal-content {
+    max-height: 92dvh;
+    border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+    border-bottom: none;
+    padding: 2.1rem 1.25rem calc(1.5rem + env(safe-area-inset-bottom)) 1.25rem;
+    animation: sheet-up var(--duration-slow) var(--easing-smooth);
+  }
+
+  .modal-content::before {
+    content: '';
+    position: absolute;
+    top: 9px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 38px;
+    height: 5px;
+    border-radius: 99px;
+    background: color-mix(in srgb, var(--text) 22%, transparent);
+  }
 }
 
 .modal-header {

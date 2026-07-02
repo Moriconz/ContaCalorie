@@ -187,3 +187,51 @@
 #fridgeAdd:focus-visible, #fridgeNotify:focus-visible {
   outline:2px solid var(--primary); outline-offset:2px;
 }
+
+/* Chip-toggle multi-select — sostituisce le checkbox grezze (es. gruppi
+   muscolari nel form allenamento). Checkbox nativa nascosta ma accessibile
+   (tab/screen reader), stile a pillola come .badge. */
+.chip-toggle-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+.chip-toggle {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  padding: 0.5rem 1rem;
+  border-radius: 99px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  background: var(--glass-secondary);
+  border: 1px solid var(--glass-border);
+  color: var(--text-secondary);
+  transition: background var(--duration-fast, 150ms) var(--easing-smooth),
+              border-color var(--duration-fast, 150ms) var(--easing-smooth),
+              color var(--duration-fast, 150ms) var(--easing-smooth),
+              transform var(--duration-fast, 150ms) var(--easing-smooth);
+  user-select: none;
+}
+.chip-toggle input[type="checkbox"] {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}
+.chip-toggle:hover { border-color: var(--glass-border-hover); }
+.chip-toggle:active { transform: scale(0.96); }
+.chip-toggle.chip-toggle--active {
+  background: color-mix(in srgb, var(--primary) 18%, transparent);
+  color: var(--primary);
+  border-color: color-mix(in srgb, var(--primary) 40%, transparent);
+}
+.chip-toggle:focus-within {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .chip-toggle { transition: none; }
+}

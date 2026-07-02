@@ -13,7 +13,7 @@
  *   cache miss.
  */
 
-const APP_VERSION = 'v27'; // v27: audit completo (2 bug critici + 13 fix medi/minori: NaN statistiche, contatore recenti, swipe-nav duplicata, ecc.)
+const APP_VERSION = 'v28'; // v28: fix ricerca alimenti (virgole DB CREA, 64% impattato), modale allenamento allineato al design system, chip toggle gruppi muscolari
 const CACHE_NAME = `calorie-pwa-${APP_VERSION}`;
 
 const CRITICAL_ASSETS = [

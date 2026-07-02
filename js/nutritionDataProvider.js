@@ -24,9 +24,15 @@ async function loadFoodDatabase() {
   }
 }
 
-/** Normalizza una parola: minuscole + rimozione accenti. */
+/**
+ * Normalizza: minuscole + rimozione accenti + punteggiatura trattata come
+ * spazio. Il DB CREA usa nomi tipo "Pollo, petto, crudo" — senza questo, lo
+ * split per parole indicizzava "pollo," con la virgola attaccata, e query
+ * come "petto di pollo" non trovavano mai la voce (colpiva ~64% del DB,
+ * ogni nome con virgole).
+ */
 function normalizeWord(w) {
-  return w.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim();
+  return w.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[,.;:()]/g, ' ').replace(/\s+/g, ' ').trim();
 }
 
 /**
