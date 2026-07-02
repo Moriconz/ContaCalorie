@@ -5,8 +5,6 @@
   Database con 583 alimenti italiani verificati.
 */
 
-import { cacheRemoteFood, loadRemoteFoodCache } from './storage.js';
-
 let foodDatabase = null;
 let foodIndexByName = null;
 

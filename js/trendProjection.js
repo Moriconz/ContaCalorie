@@ -57,21 +57,23 @@ export function getTrendWindowData(windowDays = CONFIG.defaultWindowDays, allMea
     };
   }
 
-  if (mealsWindow.length < CONFIG.minDaysForProjection) {
+  // Giorni unici con almeno un pasto loggato — la soglia sotto è dichiarata in
+  // giorni, quindi va confrontata con questo, non col conteggio grezzo dei pasti
+  // (un utente con 3 pasti/giorno soddisfaceva la soglia "14 giorni" dopo ~5).
+  const uniqueDays = new Set(mealsWindow.map(m => m.data));
+  const daysLogged = uniqueDays.size || 1;
+
+  if (uniqueDays.size < CONFIG.minDaysForProjection) {
     return {
       insufficientData: true,
       reason: `Servono almeno ${CONFIG.minDaysForProjection} giorni di log alimentari.`,
-      daysAvailable: Math.ceil(mealsWindow.length / 3) // stima giorni
+      daysAvailable: uniqueDays.size
     };
   }
 
   // Calcola medie
   const totalIntake = mealsWindow.reduce((sum, meal) => sum + (meal.macroCalcolate?.kcal || 0), 0);
   const totalProtein = mealsWindow.reduce((sum, meal) => sum + (meal.macroCalcolate?.proteine || 0), 0);
-
-  // Calcola giorni unici con log
-  const uniqueDays = new Set(mealsWindow.map(m => m.data));
-  const daysLogged = uniqueDays.size || 1;
 
   const avgIntakeKcal = Math.round(totalIntake / daysLogged);
   const avgProteinPerKg = userProfile.pesoKg > 0 ? (totalProtein / daysLogged) / userProfile.pesoKg : 1.0;

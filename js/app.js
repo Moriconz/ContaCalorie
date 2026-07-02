@@ -4,7 +4,7 @@
 */
 
 import { bootstrapApp } from './appBootstrap.js';
-import { loadUserProfile, saveUserProfile, loadUserFoods, saveUserFoods, loadMealsByDate, saveMealEntries, deleteMealEntry, loadAllMeals, saveCardioSession, loadCardioSessions, saveDailyWeight, loadDailyWeights, loadAllCardioSessions, deleteCardioSession, saveBodyCompBaseline, loadBodyCompBaselines, saveRecipe, loadRecipes, deleteRecipe, updateRecipe, loadRecipeById, saveDailySteps, loadDailyStepsByDate, loadDailyStepsByDateRange, deleteDailySteps, saveActivityPreferences, loadActivityPreferences, saveStrengthSession, loadStrengthSessionsByDateRange, loadAllStrengthSessions, updateStrengthSession, deleteStrengthSession, loadCardioSessionsByDateRange, updateCardioSession, loadFridgeItems } from './storage.js';
+import { loadUserProfile, saveUserProfile, loadUserFoods, saveUserFoods, loadMealsByDate, saveMealEntries, deleteMealEntry, loadAllMeals, saveCardioSession, loadCardioSessions, saveDailyWeight, loadDailyWeights, deleteDailyWeight, loadAllCardioSessions, deleteCardioSession, saveBodyCompBaseline, loadBodyCompBaselines, saveRecipe, loadRecipes, deleteRecipe, updateRecipe, loadRecipeById, saveDailySteps, loadDailyStepsByDate, loadDailyStepsByDateRange, deleteDailySteps, saveActivityPreferences, loadActivityPreferences, saveStrengthSession, loadStrengthSessionsByDateRange, loadAllStrengthSessions, updateStrengthSession, deleteStrengthSession, loadCardioSessionsByDateRange, updateCardioSession, loadFridgeItems } from './storage.js';
 import { calculateEnergyTargets, aggregateDailySummary, calculateMacrosForAmount, buildNutritionWarning } from './nutritionEngine.js';
 import { searchFoods, getFoodDetails, getMicrosIndex, getAllFoods, normalizeFoodItem } from './nutritionDataProvider.js';
 import { aggregateDailyMicros, analyzeMicronutrients, suggestFoodsForMicro } from './micronutrientEngine.js';
@@ -33,7 +33,7 @@ import { getCurrentBaseline, computeBodyCompDeltasSinceBaseline, estimateComposi
 import { openEstimationWizard } from './estimationEngine.js';
 import { openComposedMealWizard } from './composedMealWizard.js';
 
-import { trackFoodUsage, getRecents, suggestMealMomentByTime, getLastMealMoment } from './recentFoodsTracker.js';
+import { trackFoodUsage, getRecents } from './recentFoodsTracker.js';
 import { escapeHtml, formatDateIT, buildLastNDates } from './utils.js';
 import { showModal, closeModal, showConfirm } from './ui/modal.js';
 import { wireVoiceButton, voiceButtonHtml } from './ui/voiceInput.js';
@@ -315,12 +315,9 @@ async function renderDashboardView() {
 
   try {
     baselines = await loadBodyCompBaselines();
-    console.log('Baselines caricate:', baselines.length > 0 ? baselines : 'nessuno');
     const currentBaseline = getCurrentBaseline(baselines, appState.currentDate);
-    console.log('Current baseline:', currentBaseline);
 
     if (currentBaseline) {
-      console.log('Caricamento dati per calcolo composizione...');
       const [allMeals, allWeightsSessions, allCardioSessions, weights] = await Promise.all([
         loadAllMeals(),
         loadAllStrengthSessions(),
@@ -328,8 +325,6 @@ async function renderDashboardView() {
         loadDailyWeights()
       ]);
       dailyWeights = weights;
-
-      console.log('Dati caricati:', { mealsCount: allMeals.length, weightsCount: allWeightsSessions.length, cardioCount: allCardioSessions.length, weightsCount: dailyWeights.length });
 
       const deltas = computeBodyCompDeltasSinceBaseline(
         currentBaseline,
@@ -341,29 +336,19 @@ async function renderDashboardView() {
         appState.userProfile
       );
 
-      console.log('Deltas calcolati:', deltas);
-
       const todayWeightEntry = dailyWeights.find(w => w.data === appState.currentDate);
       const weightToday = todayWeightEntry?.pesoKg || appState.userProfile.pesoKg;
 
-      console.log('Peso oggi:', weightToday);
-
       const composition = estimateCompositionToday(currentBaseline, weightToday, deltas);
-
-      console.log('Composizione stimata:', composition);
 
       bodyCompData = {
         ...composition,
         baseline: currentBaseline,
         driftWarning: composition.driftWarning
       };
-      console.log('bodyCompData finale:', bodyCompData);
-    } else {
-      console.log('Nessun baseline presente');
     }
   } catch (error) {
     console.error('Errore nel calcolo composizione corporea:', error);
-    console.error('Stack trace:', error.stack);
     bodyCompData = null;
   }
 
@@ -468,7 +453,7 @@ async function renderNutritionViewPage() {
         showToast('Errore nell\'eliminazione', { duration: 3000, type: 'error' });
       }
     },
-    onCreateCustomFood: () => openCustomFoodForm(),
+    onCreateCustomFood: () => openCustomFoodForm(null, renderNutritionViewPage),
     onEditCustomFood: (foodId) => {
       editCustomFoodModal(foodId);
     },
@@ -481,7 +466,7 @@ async function renderNutritionViewPage() {
         showToast('Alimento eliminato');
       } catch (err) {
         console.error('Errore eliminazione alimento:', err);
-        showToast('Errore nell\'eliminazione', 3000);
+        showToast('Errore nell\'eliminazione', { duration: 3000, type: 'error' });
       }
     },
     onManageRecipes: () => goToView('foods')
@@ -663,7 +648,7 @@ async function renderPhysicsViewPage() {
                 return { success: true };
               } catch (err) {
                 console.error('Errore durante import:', err);
-                showToast('❌ Errore durante l\'importazione. Riprova.', 4000);
+                showToast('❌ Errore durante l\'importazione. Riprova.', { duration: 4000, type: 'error' });
                 return { success: false, error: err.message };
               }
             }, { parseStepsFile });
@@ -694,7 +679,7 @@ async function renderPhysicsViewPage() {
       },
       onDeleteWeight: async (date) => {
         try {
-          await deleteDailyWeights(date);
+          await deleteDailyWeight(date);
           renderPhysicsViewPage();
           showToast('Peso eliminato');
         } catch (err) {
@@ -713,7 +698,7 @@ function renderSearchView() {
   mainContent.innerHTML = renderFoodSearch(appState, appState.searchResults, appState.userFoods);
   bindFoodSearchEvents(mainContent, {
     onSearch: executeFoodSearch,
-    onCustomFood: () => openCustomFoodForm(),
+    onCustomFood: () => openCustomFoodForm(null, renderSearchView),
     onSelectFood: handleFoodSelection,
     onEstimatedFood: () => openEstimationWizard(null, async (mealEntry) => {
       appState.meals.push(mealEntry);
@@ -1272,7 +1257,11 @@ function editCustomFoodModal(foodId) {
   });
 }
 
-function openCustomFoodForm(existingFood = null) {
+// onSaved: vista da ri-renderizzare dopo il salvataggio — di default torna a
+// Ricette/Alimenti, ma i chiamanti da Nutrizione o Ricerca passano la propria
+// vista così l'utente resta nel contesto in cui stava lavorando invece di
+// essere spostato altrove.
+function openCustomFoodForm(existingFood = null, onSaved = renderFoodsView) {
   const html = renderUserFoodForm(existingFood);
   showModal(html, container => {
     bindUserFoodFormEvents(container, {
@@ -1289,7 +1278,7 @@ function openCustomFoodForm(existingFood = null) {
         }
         await saveUserFoods(appState.userFoods);
         closeModal();
-        renderFoodsView();
+        onSaved();
         showToast('Alimento salvato localmente.');
       },
       onCancel: closeModal
@@ -1457,7 +1446,7 @@ async function openAddRecipeAsMeal(recipeId) {
       const portions = parseFloat(portionsInput.value) || recipe.porzioniBase;
 
       // Calculate total macros
-      let totalKcal = 0, totalProt = 0, totalCarb = 0, totalFat = 0;
+      let totalKcal = 0, totalProt = 0, totalCarb = 0, totalFat = 0, totalSugar = 0, totalFiber = 0;
       recipe.ingredients.forEach(ing => {
         const totalGrams = ing.grammi * portions;
         // per100g salvato nell'ingrediente (ricette nuove); fallback a userFoods (legacy)
@@ -1467,6 +1456,8 @@ async function openAddRecipeAsMeal(recipeId) {
           totalProt += (per100.proteine * totalGrams) / 100;
           totalCarb += (per100.carboidrati * totalGrams) / 100;
           totalFat += (per100.grassi * totalGrams) / 100;
+          totalSugar += ((per100.zuccheri || 0) * totalGrams) / 100;
+          totalFiber += ((per100.fibra || 0) * totalGrams) / 100;
         }
       });
 
@@ -1482,8 +1473,8 @@ async function openAddRecipeAsMeal(recipeId) {
           proteine: Math.round(totalProt),
           carboidrati: Math.round(totalCarb),
           grassi: Math.round(totalFat),
-          zuccheri: 0,
-          fibra: 0
+          zuccheri: Math.round(totalSugar),
+          fibra: Math.round(totalFiber)
         },
         origin: 'recipe_saved',
         note: `Ricetta: ${recipe.nome} (${portions} porzioni)`
@@ -1517,17 +1508,20 @@ function attachBottomNav() {
       appState.currentView = view;
       renderCurrentView();
     }
-  // Swipe gesture support for tab navigation
-  const mainContent = document.getElementById('mainContent');
-  const navButtons = Array.from(document.querySelectorAll('.nav-button'));
-  
-  if (mainContent && navButtons.length > 0) {
-    initSwipeNavigation(mainContent, navButtons, (view) => {
+  });
+
+  // Swipe gesture support per la navigazione a tab: registrata UNA volta sola.
+  // Prima era annidata dentro il listener di click e veniva re-inizializzata
+  // ad ogni tap, accumulando listener touchstart/touchend duplicati su
+  // mainContent — dopo N click, uno swipe navigava N tab invece di uno solo.
+  const swipeTarget = document.getElementById('mainContent');
+  const navButtonsForSwipe = Array.from(document.querySelectorAll('.nav-button'));
+  if (swipeTarget && navButtonsForSwipe.length > 0) {
+    initSwipeNavigation(swipeTarget, navButtonsForSwipe, (view) => {
       appState.currentView = view;
       renderCurrentView();
     });
   }
-  });
 }
 
 function attachInstallButton() {
@@ -1592,273 +1586,6 @@ function openBodyCompBaselineForm(existingBaselines = []) {
 
     container.querySelector('#cancelBaseline').addEventListener('click', closeModal);
   });
-}
-
-async function renderActivitiesViewPage() {
-  try {
-    // Show loading state
-    mainContent.innerHTML = `
-      <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 60vh; gap: 1rem;">
-        <div style="font-size: 3rem; animation: spin 1s linear infinite;">⏳</div>
-        <div style="color: var(--text-muted); font-size: 0.9rem;">Caricamento attività...</div>
-      </div>
-      <style>
-        @keyframes spin {
-          from { transform: rotate(0deg); }
-          to { transform: rotate(360deg); }
-        }
-      </style>
-    `;
-
-    // Load data for last 7 days
-    const today = appState.currentDate;
-    const sevenDaysAgo = new Date(today);
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
-    const startDate = sevenDaysAgo.toISOString().slice(0, 10);
-
-    const [strengthSessions, cardioSessions, stepsRecords, prefs] = await Promise.all([
-      loadStrengthSessionsByDateRange(startDate, today),
-      loadCardioSessionsByDateRange(startDate, today),
-      loadDailyStepsByDateRange(startDate, today),
-      loadActivityPreferences()
-    ]);
-
-    // Activity preferences (use defaults if not found)
-    const activityPrefs = prefs || {
-      energyModel: 'tdee_plus_extras',
-      avoidDoubleCountingWalking: true,
-      eatBackMode: 'partial',
-      eatBackRatio: 0.3,
-      includeStepsInTdee: true,
-      stepGoal: 10000,
-      includeStrengthInExpenditure: true,
-      includeCardioInExpenditure: true
-    };
-
-    // Build last 7 days summary
-    const last7Days = [];
-    for (let i = 6; i >= 0; i--) {
-      const d = new Date(today);
-      d.setDate(d.getDate() - i);
-      const dateKey = d.toISOString().slice(0, 10);
-
-      const dayStrength = strengthSessions.filter(s => s.date === dateKey);
-      const dayCardio = cardioSessions.filter(c => c.data === dateKey);
-      const daySteps = stepsRecords.find(st => st.date === dateKey);
-
-      // Calcola calorie con le nuove funzioni (con supporto DB v5)
-      const strengthKcal = dayStrength.reduce((sum, s) => sum + (s.estimatedKcal || estimateWeightsCalories(s, appState.userProfile)), 0);
-      const cardioKcal = dayCardio.reduce((sum, c) => sum + (c.estimatedKcal || estimateCardioCalories(c, appState.userProfile)), 0);
-
-      // Stima calorie da passi con anti-double-counting
-      const stepsExcluded = shouldExcludeStepsCalories(daySteps, dayCardio, activityPrefs);
-      const stepsKcal = (!stepsExcluded && daySteps) ? estimateStepsCalories(daySteps, appState.userProfile, activityPrefs) : 0;
-
-      last7Days.push({
-        date: dateKey,
-        strength: dayStrength,
-        cardio: dayCardio,
-        steps: daySteps?.steps || 0,
-        distanceKm: daySteps?.distanceKm,
-        strengthCount: dayStrength.length,
-        cardioCount: dayCardio.length,
-        strengthMin: dayStrength.reduce((sum, s) => sum + (s.durationMin || s.durataMin || 0), 0),
-        cardioMin: dayCardio.reduce((sum, c) => sum + (c.durationMin || c.durataMin || 0), 0),
-        activityKcal: strengthKcal + cardioKcal + stepsKcal,
-        stepsExcluded
-      });
-    }
-
-    // Today's summary
-    const todayData = last7Days[last7Days.length - 1];
-    const todayStrength = todayData.strength || [];
-    const todayCardio = todayData.cardio || [];
-    const todaySteps = todayData.steps ? { date: today, steps: todayData.steps, distanceKm: todayData.distanceKm, source: 'manual', estimatedKcal: 0 } : null;
-
-    // Activity sync status from localStorage
-    const connectedProviderId = getConnectedProvider();
-    const connectedProviderName = connectedProviderId && PROVIDERS[connectedProviderId] ? PROVIDERS[connectedProviderId].name : null;
-    const activitySyncStatus = {
-      connectedProvider: connectedProviderName,
-      lastSyncTime: localStorage.getItem('activitySyncLastTime') || null,
-      importedDaysCount: localStorage.getItem('activitySyncDaysCount') ? parseInt(localStorage.getItem('activitySyncDaysCount')) : 0
-    };
-
-    const viewState = {
-      userProfile: appState.userProfile,
-      last7Days,
-      todayStrength,
-      todayCardio,
-      todaySteps,
-      prefs: activityPrefs,
-      activitySyncStatus
-    };
-
-    mainContent.innerHTML = renderActivitiesView(viewState);
-
-    bindActivitiesEvents(mainContent, {
-      onAddStrength: () => showAddStrengthModal(async (formData) => {
-        try {
-          await saveStrengthSession(formData);
-          showToast('Allenamento pesi salvato.', { type: 'success' });
-          renderActivitiesViewPage();
-        } catch (err) {
-          console.error('Errore salvataggio allenamento:', err);
-          showToast('Errore nel salvataggio. Riprova.', { duration: 4000, type: 'error' });
-        }
-      }),
-      onEditStrength: (id) => {
-        const session = strengthSessions.find(s => s.id === id);
-        if (session) {
-          showEditStrengthModal(session, async (formData) => {
-            try {
-              await updateStrengthSession(id, formData);
-              showToast('Allenamento pesi aggiornato.', { type: 'success' });
-              renderActivitiesViewPage();
-            } catch (err) {
-              console.error('Errore aggiornamento allenamento:', err);
-              showToast('❌ Errore nell\'aggiornamento. Riprova.', 4000);
-            }
-          });
-        }
-      },
-      onDeleteStrength: async (id) => {
-        try {
-          await deleteSessionWithUndo('strength', id, renderActivitiesViewPage);
-        } catch (err) {
-          console.error('Errore eliminazione allenamento:', err);
-          showToast('Errore nell\'eliminazione. Riprova.', { duration: 4000, type: 'error' });
-        }
-      },
-      onAddCardio: () => showAddCardioModal(async (formData) => {
-        try {
-          await saveCardioSession(formData);
-          showToast('Sessione cardio salvata.', { type: 'success' });
-          renderActivitiesViewPage();
-        } catch (err) {
-          console.error('Errore salvataggio cardio:', err);
-          showToast('Errore nel salvataggio. Riprova.', { duration: 4000, type: 'error' });
-        }
-      }),
-      onEditCardio: (id) => {
-        const session = cardioSessions.find(c => c.id === id);
-        if (session) {
-          showEditCardioModal(session, async (formData) => {
-            try {
-              await updateCardioSession(id, formData);
-              showToast('Sessione cardio aggiornata.', { type: 'success' });
-              renderActivitiesViewPage();
-            } catch (err) {
-              console.error('Errore aggiornamento cardio:', err);
-              showToast('❌ Errore nell\'aggiornamento. Riprova.', 4000);
-            }
-          });
-        }
-      },
-      onDeleteCardio: async (id) => {
-        try {
-          await deleteSessionWithUndo('cardio', id, renderActivitiesViewPage);
-        } catch (err) {
-          console.error('Errore eliminazione cardio:', err);
-          showToast('Errore nell\'eliminazione. Riprova.', { duration: 4000, type: 'error' });
-        }
-      },
-      onAddSteps: () => showAddStepsModal(async (formData) => {
-        try {
-          await saveDailySteps(formData);
-          showToast('Passi salvati.', { type: 'success' });
-          renderActivitiesViewPage();
-        } catch (err) {
-          console.error('Errore salvataggio passi:', err);
-          showToast('Errore nel salvataggio. Riprova.', { duration: 4000, type: 'error' });
-        }
-      }),
-      onEditSteps: (date) => {
-        const stepsData = stepsRecords.find(s => s.date === date);
-        showAddStepsModal(async (formData) => {
-          try {
-            await saveDailySteps(formData);
-            showToast('Passi aggiornati.', { type: 'success' });
-            renderActivitiesViewPage();
-          } catch (err) {
-            console.error('Errore aggiornamento passi:', err);
-            showToast('❌ Errore nell\'aggiornamento. Riprova.', 4000);
-          }
-        }, stepsData);
-      },
-      onSyncSteps: () => {
-        try {
-          showProviderSelectionModal(async (providerId, provider) => {
-            showFileImportModal(provider, async (recordsToImport) => {
-              try {
-                let imported = 0;
-                let skipped = 0;
-                const errors = [];
-
-                for (const record of recordsToImport) {
-                  try {
-                    await saveDailySteps({
-                      date: record.date,
-                      steps: record.steps,
-                      distanceKm: record.distanceKm,
-                      activeMinutes: record.activeMinutes,
-                      source: providerId,
-                      syncMeta: {
-                        provider: providerId,
-                        importedAt: new Date().toISOString(),
-                        rawPayloadVersion: 'csv_import'
-                      }
-                    });
-                    imported++;
-                  } catch (err) {
-                    skipped++;
-                    errors.push(`${record.date}: ${err.message}`);
-                  }
-                }
-
-                if (imported === 0) {
-                  showToast('Nessun record importato.', { duration: 4000, type: 'error' });
-                  return { success: false, error: 'Nessun record importato con successo' };
-                }
-
-                // Update sync metadata in localStorage
-                setConnectedProvider(providerId);
-                localStorage.setItem('activitySyncLastTime', new Date().toLocaleString('it-IT'));
-                const existingCount = localStorage.getItem('activitySyncDaysCount') ? parseInt(localStorage.getItem('activitySyncDaysCount')) : 0;
-                localStorage.setItem('activitySyncDaysCount', (existingCount + imported).toString());
-
-                showToast(`✅ ${imported} giorni importati${skipped > 0 ? `, ${skipped} saltati` : ''}.`);
-                renderActivitiesViewPage();
-                return { success: true };
-              } catch (err) {
-                console.error('Errore durante import:', err);
-                showToast('❌ Errore durante l\'importazione. Riprova.', 4000);
-                return { success: false, error: err.message };
-              }
-            }, { parseStepsFile });
-          }, { PROVIDERS, getAvailableProviders });
-        } catch (err) {
-          console.error('Errore apertura provider selection:', err);
-          showToast('Errore. Riprova.', { duration: 4000, type: 'error' });
-        }
-      },
-      onDisconnectProvider: async () => {
-        try {
-          clearConnectedProvider();
-          localStorage.removeItem('activitySyncLastTime');
-          localStorage.removeItem('activitySyncDaysCount');
-          showToast('Provider scollegato.', { type: 'success' });
-          renderActivitiesViewPage();
-        } catch (err) {
-          console.error('Errore disconnessione provider:', err);
-          showToast('Errore. Riprova.', { duration: 4000, type: 'error' });
-        }
-      }
-    });
-  } catch (error) {
-    console.error('Errore nel caricamento attività:', error);
-    reportError('Errore nel caricamento attività.');
-  }
 }
 
 function renderSettingsView() {

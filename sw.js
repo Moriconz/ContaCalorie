@@ -13,7 +13,7 @@
  *   cache miss.
  */
 
-const APP_VERSION = 'v26'; // v26: stile "Liquid Glass" elevato (dark+light) + perf mobile (blur ridotto) + fallback a11y
+const APP_VERSION = 'v27'; // v27: audit completo (2 bug critici + 13 fix medi/minori: NaN statistiche, contatore recenti, swipe-nav duplicata, ecc.)
 const CACHE_NAME = `calorie-pwa-${APP_VERSION}`;
 
 const CRITICAL_ASSETS = [

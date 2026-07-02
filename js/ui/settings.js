@@ -605,8 +605,8 @@ function showConfirmDialog(title, message) {
     `;
 
     content.innerHTML = `
-      <h3 style="margin-top: 0; margin-bottom: 1rem;">${title}</h3>
-      <p style="margin-bottom: 2rem; white-space: pre-wrap;">${message}</p>
+      <h3 style="margin-top: 0; margin-bottom: 1rem;">${escapeHtml(title)}</h3>
+      <p style="margin-bottom: 2rem; white-space: pre-wrap;">${escapeHtml(message)}</p>
       <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
         <button id="confirmNo" class="button-secondary" style="width: 100%;">Annulla</button>
         <button id="confirmYes" class="button-primary" style="width: 100%;">Continua</button>

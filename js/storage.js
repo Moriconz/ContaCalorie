@@ -498,6 +498,14 @@ export async function loadDailyWeightByDate(date) {
   }
 }
 
+export async function deleteDailyWeight(date) {
+  try {
+    await withStore('dailyWeights', 'readwrite', store => store.delete(date));
+  } catch (error) {
+    console.warn('Storage: errore eliminazione daily weight:', error);
+  }
+}
+
 // === BODY COMPOSITION BASELINES (DB v3) ===
 
 export async function saveBodyCompBaseline(baseline) {
@@ -745,6 +753,7 @@ export async function saveFridgeItem(item) {
     await withStore('fridge', 'readwrite', store => store.put(toSave));
   } catch (error) {
     console.warn('Storage: errore salvataggio fridge item:', error);
+    throw error; // non ritornare "successo" su un salvataggio fallito
   }
   return toSave;
 }

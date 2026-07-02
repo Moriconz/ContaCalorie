@@ -113,7 +113,7 @@ export function validateExportData(data) {
     return { valid: false, error: 'Profilo utente incompleto (manca nome)' };
   }
   // I campi array sono opzionali; se presenti devono essere array
-  for (const key of ['meals', 'userFoods', 'weightsSessions', 'cardioSessions', 'strengthSessions', 'dailyWeights', 'dailySteps', 'bodyCompBaselines', 'recipes']) {
+  for (const key of ['meals', 'userFoods', 'weightsSessions', 'cardioSessions', 'strengthSessions', 'dailyWeights', 'dailySteps', 'bodyCompBaselines', 'recipes', 'fridge']) {
     if (data[key] !== undefined && !Array.isArray(data[key])) {
       return { valid: false, error: `Campo "${key}" non è un array valido` };
     }

@@ -79,7 +79,7 @@ export function renderRecipeForm(recipe = null) {
 
         <div style="display: flex; gap: 0.5rem; margin-bottom: 1rem;">
           <input id="ingredientSearchInput" type="text" placeholder="Cerca ingrediente..." style="flex: 1; padding: 0.75rem; border: 1px solid var(--glass-border); border-radius: 8px; background: var(--glass-secondary); color: var(--text-primary); font-size: 16px;">
-          <button id="addIngredientBtn" class="primary" style="padding: 0.75rem 1rem;">Aggiungi</button>
+          <button id="addIngredientBtn" class="primary" style="padding: 0.75rem 1rem;">Cerca</button>
         </div>
 
         <div id="ingredientSearchResults" style="display: none; max-height: 200px; overflow-y: auto; background: var(--glass-secondary); border: 1px solid var(--glass-border); border-radius: 8px; margin-bottom: 1rem; padding: 0.5rem;"></div>
@@ -167,7 +167,15 @@ export function bindRecipeFormEvents(container, callbacks, initialIngredients = 
   async function runSearch() {
     const q = searchEl.value.trim();
     if (q.length < 2) { resultsEl.style.display = 'none'; return; }
-    const found = await searchFoods(q);
+    let found;
+    try {
+      found = await searchFoods(q);
+    } catch (error) {
+      console.warn('Ricerca ingredienti fallita:', error);
+      resultsEl.style.display = 'block';
+      resultsEl.innerHTML = '<p class="small-muted" style="margin:0;">Ricerca non riuscita. Riprova.</p>';
+      return;
+    }
     resultsEl.style.display = 'block';
     resultsEl.innerHTML = found.length
       ? found.slice(0, 8).map((f, i) => `<button type="button" data-res="${i}" class="secondary" style="display:block; width:100%; text-align:left; margin-bottom:0.35rem; padding:0.5rem;">${escapeHtml(f.nome)} · ${f.per100g?.kcal || 0} kcal/100g</button>`).join('')
