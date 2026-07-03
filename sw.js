@@ -13,7 +13,7 @@
  *   cache miss.
  */
 
-const APP_VERSION = 'v28'; // v28: fix ricerca alimenti (virgole DB CREA, 64% impattato), modale allenamento allineato al design system, chip toggle gruppi muscolari
+const APP_VERSION = 'v29'; // v29: categoria "Fast food" espansa con dati ufficiali brand (McDonald's) + fix ricerca su nomi con trattino
 const CACHE_NAME = `calorie-pwa-${APP_VERSION}`;
 
 const CRITICAL_ASSETS = [

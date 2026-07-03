@@ -29,10 +29,12 @@ async function loadFoodDatabase() {
  * spazio. Il DB CREA usa nomi tipo "Pollo, petto, crudo" — senza questo, lo
  * split per parole indicizzava "pollo," con la virgola attaccata, e query
  * come "petto di pollo" non trovavano mai la voce (colpiva ~64% del DB,
- * ogni nome con virgole).
+ * ogni nome con virgole). Il trattino è incluso per lo stesso motivo: nomi
+ * brand tipo "Filet-O-Fish" non erano trovabili da query multi-parola tipo
+ * "filet o fish".
  */
 function normalizeWord(w) {
-  return w.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[,.;:()]/g, ' ').replace(/\s+/g, ' ').trim();
+  return w.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[,.;:()-]/g, ' ').replace(/\s+/g, ' ').trim();
 }
 
 /**
