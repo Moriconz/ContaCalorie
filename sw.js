@@ -13,7 +13,7 @@
  *   cache miss.
  */
 
-const APP_VERSION = 'v29'; // v29: categoria "Fast food" espansa con dati ufficiali brand (McDonald's) + fix ricerca su nomi con trattino
+const APP_VERSION = 'v30'; // v30: menù panini McDonald's Italia completo (24 prodotti ufficiali)
 const CACHE_NAME = `calorie-pwa-${APP_VERSION}`;
 
 const CRITICAL_ASSETS = [
