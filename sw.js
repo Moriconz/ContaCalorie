@@ -13,7 +13,7 @@
  *   cache miss.
  */
 
-const APP_VERSION = 'v30'; // v30: menù panini McDonald's Italia completo (24 prodotti ufficiali)
+const APP_VERSION = 'v31'; // v31: McDonald's Italia — pollo/nuggets, contorni, dolci, bevande (33 prodotti brand totali)
 const CACHE_NAME = `calorie-pwa-${APP_VERSION}`;
 
 const CRITICAL_ASSETS = [
