@@ -13,7 +13,7 @@
  *   cache miss.
  */
 
-const APP_VERSION = 'v36'; // v36: Subway (5 panini, dati ufficiali Subway mercato Australia - Italia non ha documento proprio)
+const APP_VERSION = 'v37'; // v37: McDonald's — 7 bevande + 4 insalate, tutti dati ufficiali mcdonalds.it
 const CACHE_NAME = `calorie-pwa-${APP_VERSION}`;
 
 const CRITICAL_ASSETS = [
