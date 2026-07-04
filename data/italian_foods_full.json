@@ -23338,6 +23338,23 @@
       "portion_g": null,
       "source": "non ufficiale (dietabit.it) — Burger King Italia non pubblica dati nutrizionali propri",
       "brand": "Burger King"
+    },
+    {
+      "id": "burgerking_shake_vaniglia",
+      "name_it": "Shake alla Vaniglia (Burger King)",
+      "category": "Fast food",
+      "category_code": "08",
+      "kcal_100g": 168,
+      "protein_100g": 3.19,
+      "carb_100g": 19.03,
+      "fat_100g": 8.74,
+      "fiber_100g": 0,
+      "sugars_100g": 11.67,
+      "sodium_mg_100g": 100,
+      "cholesterol_mg_100g": null,
+      "portion_g": null,
+      "source": "non ufficiale (dietabit.it) — Burger King Italia non pubblica dati nutrizionali propri",
+      "brand": "Burger King"
     }
   ],
   "microsInfo": {
