@@ -13,7 +13,7 @@
  *   cache miss.
  */
 
-const APP_VERSION = 'v37'; // v37: McDonald's — 7 bevande + 4 insalate, tutti dati ufficiali mcdonalds.it
+const APP_VERSION = 'v38'; // v38: McDonald's McCafé — 6 croissant + 5 donut, tutti dati ufficiali mcdonalds.it
 const CACHE_NAME = `calorie-pwa-${APP_VERSION}`;
 
 const CRITICAL_ASSETS = [
