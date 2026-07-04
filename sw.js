@@ -13,7 +13,7 @@
  *   cache miss.
  */
 
-const APP_VERSION = 'v33'; // v33: completa Burger King Italia (7 prodotti, fonte non ufficiale dichiarata)
+const APP_VERSION = 'v34'; // v34: primi 2 prodotti KFC Italia (fonte non ufficiale, dichiarata)
 const CACHE_NAME = `calorie-pwa-${APP_VERSION}`;
 
 const CRITICAL_ASSETS = [

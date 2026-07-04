@@ -23355,6 +23355,40 @@
       "portion_g": null,
       "source": "non ufficiale (dietabit.it) — Burger King Italia non pubblica dati nutrizionali propri",
       "brand": "Burger King"
+    },
+    {
+      "id": "kfc_classic_original_burger",
+      "name_it": "Classic Original Burger (KFC)",
+      "category": "Fast food",
+      "category_code": "08",
+      "kcal_100g": 241,
+      "protein_100g": 12.68,
+      "carb_100g": 23.41,
+      "fat_100g": 10.24,
+      "fiber_100g": null,
+      "sugars_100g": null,
+      "sodium_mg_100g": null,
+      "cholesterol_mg_100g": null,
+      "portion_g": 205,
+      "source": "non ufficiale (fatsecret.it) — KFC Italia pubblica solo un libro ingredienti/allergeni, nessun dato kcal/macro",
+      "brand": "KFC"
+    },
+    {
+      "id": "kfc_popcorn_chicken",
+      "name_it": "Popcorn Chicken (KFC)",
+      "category": "Fast food",
+      "category_code": "08",
+      "kcal_100g": 351,
+      "protein_100g": 17.67,
+      "carb_100g": 20.18,
+      "fat_100g": 22,
+      "fiber_100g": null,
+      "sugars_100g": null,
+      "sodium_mg_100g": 1140,
+      "cholesterol_mg_100g": null,
+      "portion_g": null,
+      "source": "non ufficiale (dati USA, database internazionali) — KFC Italia non pubblica dati propri, nessuna fonte italiana trovata per questo prodotto, la ricetta potrebbe differire leggermente",
+      "brand": "KFC"
     }
   ],
   "microsInfo": {
