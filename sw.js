@@ -13,7 +13,7 @@
  *   cache miss.
  */
 
-const APP_VERSION = 'v31'; // v31: McDonald's Italia — pollo/nuggets, contorni, dolci, bevande (33 prodotti brand totali)
+const APP_VERSION = 'v32'; // v32: primi 6 prodotti Burger King Italia (fonte non ufficiale, dichiarata)
 const CACHE_NAME = `calorie-pwa-${APP_VERSION}`;
 
 const CRITICAL_ASSETS = [
