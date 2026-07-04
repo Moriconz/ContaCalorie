@@ -13,7 +13,7 @@
  *   cache miss.
  */
 
-const APP_VERSION = 'v34'; // v34: primi 2 prodotti KFC Italia (fonte non ufficiale, dichiarata)
+const APP_VERSION = 'v35'; // v35: espansione menù Burger King (19 tot.) e KFC (6 tot.) via pagine-hub fatsecret.it
 const CACHE_NAME = `calorie-pwa-${APP_VERSION}`;
 
 const CRITICAL_ASSETS = [
