@@ -13,7 +13,7 @@
  *   cache miss.
  */
 
-const APP_VERSION = 'v40'; // v40: McDonald's McCafé — 3 torte + 2 McPops, tutti dati ufficiali mcdonalds.it (McCafé completato)
+const APP_VERSION = 'v41'; // v41: McDonald's — 7 salse (Big Mac, Ketchup, Maionese, BBQ, Agrodolce, Hot Devil, Szechuan), tutte ufficiali
 const CACHE_NAME = `calorie-pwa-${APP_VERSION}`;
 
 const CRITICAL_ASSETS = [
