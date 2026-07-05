@@ -102,6 +102,7 @@ export function normalizeFoodItem(food) {
     id: food.id,
     source: food.source || 'BancaDatiNutrizionali',
     nome: food.name_it,
+    brand: food.brand || '',
     porzioneBase: '100 g',
     per100g: {
       kcal: food.kcal_100g,

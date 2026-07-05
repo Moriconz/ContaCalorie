@@ -13,7 +13,7 @@
  *   cache miss.
  */
 
-const APP_VERSION = 'v42'; // v42: McDonald's — Chicken Wings, dato ufficiale (Nuggets/Sfiziosità completato)
+const APP_VERSION = 'v43'; // v43: fix normalizeFoodItem — campo brand non copiato dal DB, sottotitolo brand mancante nei risultati ricerca
 const CACHE_NAME = `calorie-pwa-${APP_VERSION}`;
 
 const CRITICAL_ASSETS = [
