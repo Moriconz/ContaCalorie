@@ -24426,6 +24426,23 @@
       "portion_g": null,
       "source": "ufficiale mcdonalds.it (pagina prodotto, tab \"Per 100 gr\") — disponibilità limitata secondo il sito ufficiale",
       "brand": "McDonald's"
+    },
+    {
+      "id": "mcdonalds_chicken_wings",
+      "name_it": "Chicken Wings (McDonald's)",
+      "category": "Fast food",
+      "category_code": "08",
+      "kcal_100g": 221,
+      "protein_100g": 21,
+      "carb_100g": 7.3,
+      "fat_100g": 12,
+      "fiber_100g": 0.1,
+      "sugars_100g": 0.2,
+      "sodium_mg_100g": 840,
+      "cholesterol_mg_100g": null,
+      "portion_g": null,
+      "source": "ufficiale mcdonalds.it (pagina prodotto, tab \"Per 100 gr\")",
+      "brand": "McDonald's"
     }
   ],
   "microsInfo": {
