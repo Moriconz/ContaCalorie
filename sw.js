@@ -13,7 +13,7 @@
  *   cache miss.
  */
 
-const APP_VERSION = 'v39'; // v39: McDonald's McCafé — 2 muffin + cinnamon roll + 3 macaron, tutti dati ufficiali mcdonalds.it
+const APP_VERSION = 'v40'; // v40: McDonald's McCafé — 3 torte + 2 McPops, tutti dati ufficiali mcdonalds.it (McCafé completato)
 const CACHE_NAME = `calorie-pwa-${APP_VERSION}`;
 
 const CRITICAL_ASSETS = [
